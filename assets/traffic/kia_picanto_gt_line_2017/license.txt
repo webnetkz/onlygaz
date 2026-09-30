@@ -1,0 +1,11 @@
+Model Information:
+* title:	2017 Kia Picanto GT-Line
+* source:	https://sketchfab.com/3d-models/2017-kia-picanto-gt-line-8fa81f7e068f4d3ab625c214360f8e4e
+* author:	Ddiaz Design (https://sketchfab.com/ddiaz-design)
+
+Model License:
+* license type:	CC-BY-NC-SA-4.0 (http://creativecommons.org/licenses/by-nc-sa/4.0/)
+* requirements:	Author must be credited. No commercial use. Modified versions must have the same license.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "2017 Kia Picanto GT-Line" (https://sketchfab.com/3d-models/2017-kia-picanto-gt-line-8fa81f7e068f4d3ab625c214360f8e4e) by Ddiaz Design (https://sketchfab.com/ddiaz-design) licensed under CC-BY-NC-SA-4.0 (http://creativecommons.org/licenses/by-nc-sa/4.0/)

@@ -1,0 +1,12 @@
+Asphalt Track
+Source: https://polyhaven.com/a/asphalt_track
+Author: Dimitrios Savva
+License: CC0 1.0 Universal
+License information: https://polyhaven.com/license
+
+Included 2K maps:
+- asphalt_track_diff_2k.jpg (sRGB base colour)
+- asphalt_track_nor_gl_2k.jpg (linear OpenGL normal map)
+- asphalt_track_arm_2k.jpg (linear AO / roughness / metallic map)
+
+The asset is used at its authored physical size of 2 x 2 metres.

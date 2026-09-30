@@ -1,0 +1,12 @@
+/target
+**/*.rs.bk
+*.pdb
+.DS_Store
+__pycache__/
+*.pyc
+
+# Build output is reproducible from the checked-in sources and assets.
+# Keep the original Microsoft Store artwork, but not duplicate MSIX staging
+# trees or package binaries, in the source repository.
+/dist/*
+!/dist/OnlyGAZ_StoreAssets/

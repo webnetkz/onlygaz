@@ -1,0 +1,11 @@
+Model Information:
+* title:	2011 Mercedes M-class
+* source:	https://sketchfab.com/3d-models/2011-mercedes-m-class-a9f0087058c94b26be4b002929aa0286
+* author:	RES1N (https://sketchfab.com/Resinnnn)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "2011 Mercedes M-class" (https://sketchfab.com/3d-models/2011-mercedes-m-class-a9f0087058c94b26be4b002929aa0286) by RES1N (https://sketchfab.com/Resinnnn) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

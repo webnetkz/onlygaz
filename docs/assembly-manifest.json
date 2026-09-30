@@ -1,0 +1,702 @@
+{
+  "assembled_date": "2026-09-08",
+  "selected_version": "veyron_sim_src.tar.gz",
+  "original_file_count": 77,
+  "all_original_files_match_selected_archive": true,
+  "post_assembly_changes": [
+    {
+      "path": "src/main.rs",
+      "reason": "Added the visible MERGED 2026-09-08 build marker after the original archive comparison."
+    },
+    {
+      "path": "src/camera/controller.rs",
+      "reason": "Removed fixed-timestep camera jitter and made mounted cameras use exact local poses."
+    },
+    {
+      "path": "src/camera/modes.rs",
+      "reason": "Disabled speed-dependent FOV changes for mounted views and centred the cockpit camera between the seats."
+    },
+    {
+      "path": "src/camera/mod.rs",
+      "reason": "Moved camera updates before transform propagation so rendering sees the current pose."
+    },
+    {
+      "path": "tests/app_smoke.rs",
+      "reason": "Updated the chase-camera regression test for local-offset following."
+    },
+    {
+      "path": "src/vehicle/physics.rs",
+      "reason": "Added independent frame-rate-safe smoothing for the visual steering wheel without changing vehicle control input."
+    },
+    {
+      "path": "src/vehicle/model_rig.rs",
+      "reason": "Initialised the visual steering state on the steering-wheel pivot."
+    },
+    {
+      "path": "src/vehicle/controller.rs",
+      "reason": "Added progressive steering-input smoothing above 200 km/h while preserving the original response at lower speeds."
+    }
+  ],
+  "sources": [
+    {
+      "archive": "veyron_sim_code.tar.gz",
+      "sha256": "bb836bbe68e67ea4faa0d98568c6833cb1e8a2dfc8fe18993eb5409aee9a0ddf",
+      "file_count": 71
+    },
+    {
+      "archive": "veyron_sim_update.tar.gz",
+      "sha256": "65e79c7549b1e5396c03ba56b0c676587c25bd06553c77a2c544a2d1fa8f5675",
+      "file_count": 50
+    },
+    {
+      "archive": "veyron_sim_src.tar.gz",
+      "sha256": "ef6354b305b3b0304de4c78c90851110d93c77c61a043c85a22a0cdcb191e880",
+      "file_count": 77
+    },
+    {
+      "archive": "scene_bin.zip",
+      "sha256": "88ca591e9788708eb736a344af8b3ea45ac0f821f8d63ce5677dfec8ef1c3a1a",
+      "file_count": 1
+    }
+  ],
+  "files": [
+    {
+      "path": ".gitignore",
+      "sha256": "57d7612ea397984d69935c7c05c03c0f71a760c23db44744f2cfcf34205c20d5",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "ae590ebe2b5a0582778c1dfe6e8f050cde68342f2341e3a40d8ccf23c55fc7c1",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "Cargo.toml",
+      "sha256": "73c19e19e399ba376ec8d984979702f7124241afb7f0fe773be78ea2fd67e0a7",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "LICENSE-APACHE",
+      "sha256": "4c41ec7de1b375ab0164cf4f2e11e5d5a90336fa8b95b9c2fb9fc1862b1e8ef2",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "LICENSE-MIT",
+      "sha256": "55b972070dba515d3eed3fcefe372651a1a39286fee2bde86dd2dd387e5e7ae2",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "README.md",
+      "sha256": "b85214ba9711de5869d8e3f146853e3187dd38ffacacc9fb6dafb828358edba7",
+      "matching_sources": [
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/license.txt",
+      "sha256": "4fe0106de326f9b16d5d10f7bf1dca6626d613918b03fb1a4fd7531895579046",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/scene.bin",
+      "sha256": "bb3ece7da6a0ba7aa9e2f1a96781edbbf71ad1d447f30dbb7c65252095c10535",
+      "matching_sources": [
+        "veyron_sim_src.tar.gz",
+        "scene_bin.zip"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/scene.gltf",
+      "sha256": "fe0edd5096757691d3defe3ea71e8e793da71af73a872198387f570d1edfc790",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/Bugatti_VeyronSuperSport_2012_Wheel1A_3D_3DWheel1A_Material_baseColor.png",
+      "sha256": "cea9bf02d31e69cda0a3121dff7c6f5e4f944da2403c68aecfa95c448979ef84",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/Bugatti_VeyronSuperSport_2012_Wheel1A_3D_3DWheel1A_Material_normal.png",
+      "sha256": "644e8d918b6e439d5c8fff4ac8fe06a4e6bf9c8ac19810950f4bfaa52c726146",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/COSTURA_baseColor.png",
+      "sha256": "8de7f8aff7e87738b3e4cc87d6ce1dd8e0864695fad9767e310ccbd52c9b3e74",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/METALEGNINE_baseColor.png",
+      "sha256": "99e82bf3e83e5214e837c7b3257319516916f36bcdc44f2b1099da3a69cb0e85",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/MOTOSO_baseColor.png",
+      "sha256": "61b4b9fbfa2ede86c4f856544bb9231ff1a98b0f1c5c04d1d26a0ef1b5704e5f",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/PLASTIC_INTEIROR_baseColor.png",
+      "sha256": "c979c7c228f191cb10d3e8acf244f66fd422ac765404094a13655a50b5c7aeea",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/badge_baseColor.png",
+      "sha256": "6fcbe80330c6303a3787d10897f67fb2a946a4c02f8b8897be6abdc49632d314",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/badge_cp_baseColor.png",
+      "sha256": "a7265cdb40e3e0aec3ba910e00bad3bf4d2da7b3297f5c9a5b0524d40c0a682a",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/black_baseColor.png",
+      "sha256": "f02124fb1921958452d02e5b3eccb13f61953dcca741add9b3e6df1a7d95fd06",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/body_baseColor.png",
+      "sha256": "c42bcd9ee7f6b1d47f11120ededd39a043ea4c9c67d9b9b4cf1c33f94edee793",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/brake_smooth_metal_baseColor.png",
+      "sha256": "d93e7ee545cdc31ea4dd4e28c1eb835cdb2d15a30da6662a5de9cb458155b6eb",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/carbon_fiber_baseColor.png",
+      "sha256": "50dd88d573b106b4ea4a45c385df745db5c2d086394eee819a578c41686f372d",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/embossed_plastic_cp_baseColor.png",
+      "sha256": "7c5e6af85b66602d9d1e922190084c55860c3583e442204e1201f6bf1544502e",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/grille1_baseColor.png",
+      "sha256": "36d93cf34b8aebe88be4e947c7c3113f1738ad067b8a171c04a04ff4cad1a822",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/grille1_metallicRoughness.png",
+      "sha256": "bf24d5ac38780e134058149a1a8b2fe4a431d30d69eec18adc7a0dddc591d495",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/grille1_normal.png",
+      "sha256": "a37ef1f7cc8493de9c70a4a1ea5e1062aca6aa0f2f3127a3bdc149cec3d1e57d",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/grille3_baseColor.png",
+      "sha256": "67b5d968379014daf032a3c53c858e6e3ea8ef22906613582903cf8edd6d97bf",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/grille3_metallicRoughness.png",
+      "sha256": "7090e4525522bed0c0f82307d6b73e9e12f51a8e9a3aff46fdb31ce296170a1c",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/lights_chrome_baseColor.png",
+      "sha256": "ea50a115bd38718d908b57dd7c4000dec0799d6a67d0b68bb3b53a571e51da9b",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/metal_baseColor.png",
+      "sha256": "658d4cdf2194bf6006aebd2552eeafe03fe3b682470d223a94d6a03a9351082b",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/rim_bump_metal_baseColor.png",
+      "sha256": "3eaa7a48fd0dca306a030be2fb530aaea9f77508eadfc1cda9f54dac962b9891",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/models/bugatti/textures/smooth_metal_cp_baseColor.png",
+      "sha256": "658d4cdf2194bf6006aebd2552eeafe03fe3b682470d223a94d6a03a9351082b",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/sounds/README.md",
+      "sha256": "4d3bc8ab63d855b118c9ea0a5b8c99e796c5ecf4324b784f0e02a174a8570d1b",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "assets/sounds/engine_loop.ogg",
+      "sha256": "1af15254091b4362e81ba51d67e714957dca7312ce6b4a666a906ad5d9782bba",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "docs/model_analysis.md",
+      "sha256": "b801bdaef428c6bcf869df603d346225fa4e971b0ea9515866d7c8a148dc6ecf",
+      "matching_sources": [
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "docs/screenshots/chase-close.png",
+      "sha256": "56ead9845fb6ad9aed3b86809db1327507c50e231549a07659912d131781a410",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "docs/screenshots/chase-far.png",
+      "sha256": "77eee06b198a819b373b523bc46e555972a03b3584a3e40646f5c03ccdbd02f4",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "docs/screenshots/cockpit.png",
+      "sha256": "6f39975acd19c203963815328f001dd9b4a914c1f1bf24eda9d4c1521aaea597",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "docs/screenshots/front-bumper.png",
+      "sha256": "6a7fcc77f051e15821fd579125bd09413e9c7de763e17bc1ae7ca8229a5247d5",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "docs/screenshots/hood.png",
+      "sha256": "542476cac30b584ca65425b7def6f0fbcab5660192f57c4e595ded9ee6d5f41e",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "examples/render_still.rs",
+      "sha256": "d339a937acf1a158c84dc845f602a343614f2191ae268066ffc6b72220bc5316",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/audio/engine.rs",
+      "sha256": "8a845643fac863a983f37234b9048d342d1d2ad6d2386f5f6079e89c5dbbf20f",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/audio/mod.rs",
+      "sha256": "c02bf883464dbc7c6cf740ee8c9f9da37e83e34c8a85ed75415b4cdbf6f71305",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/camera/controller.rs",
+      "sha256": "be2d5554970ad94c9ac9977b62b57713208772820d2ef9c190bcb84a00f63f4a",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/camera/mod.rs",
+      "sha256": "c9d55e93af3393fe820586428e904ffb82489d4585a20bae75033d9189c39e69",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/camera/modes.rs",
+      "sha256": "33a8987bfbd1501e76acd8c8d0ea94d04ee059e67064e012b6d54dfc9e46c085",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/game.rs",
+      "sha256": "ea04233a77d4143711f947fcf1bc4f2ba1a860d9e5bae73679f6602cdf4589d2",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "c2cb3c4255e36f415f96325a56fe8740256430771230a350b58414cf4252c266",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/main.rs",
+      "sha256": "f7e0a1291d2badfaf598ceb4f11d54f52102180d840b89a0e15a02053fc01bcd",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/ui/debug.rs",
+      "sha256": "b18925a5e5db83c0d25f1aeb6bd323e9cd70751513ee4913424350fcc4d48f0a",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/ui/gizmos.rs",
+      "sha256": "ba74d686c259f2367794ccd27a85e0bb2bc895392def2607bb3d232d613c34af",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/ui/menu.rs",
+      "sha256": "033ab85c891b4137957add1e6cd4dd8a1209499d03f31b293db15a9e94ef8114",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/ui/mod.rs",
+      "sha256": "bef455ec3b112bba2e95f9afc80086ff8dbd2f10c7e82d7d4ee25963267e7dfb",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/ui/speedometer.rs",
+      "sha256": "0a215751b1428cce46fc264c543958afc0123be9d62118edb43de796abf099ad",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/vehicle/aero.rs",
+      "sha256": "df08b67688a2cfcc1982916d6502dd23c809894268b873b705f38f6e28ed3d9d",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/vehicle/brakes.rs",
+      "sha256": "34770ef5c406e4ceeab2adc3e6bf54adff7d160ce69c1518e820d7bec9d77176",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/vehicle/config.rs",
+      "sha256": "2fd04a55125604db29fc61774cc6b270fe21f502a84fb9500a88b3cd5766b6e1",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/vehicle/controller.rs",
+      "sha256": "d72bfcba74c16b14bdcc534a20ea0c3cd64c564d330fd08b9b2eff4eb3e3ff0a",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/vehicle/drivetrain.rs",
+      "sha256": "aeedffff6219c3b61faec470e77c04dafcc9a05c0c66f710f265bd7beb03ad7d",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/vehicle/engine.rs",
+      "sha256": "12a62d91b182f47ded34035751c8e810c6e763a690e1af80402748c0574fba80",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/vehicle/lights.rs",
+      "sha256": "aa9004e51900dc4e59fe0db71df083be91154eb14e94cfadd531a5680faada15",
+      "matching_sources": [
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/vehicle/mod.rs",
+      "sha256": "536519fc00e68ce18203f6623cc68e1dee101f2582be1ef35ce3f7e0a1d99a5f",
+      "matching_sources": [
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/vehicle/model_rig.rs",
+      "sha256": "4a705649e3923fef922f245e720af90d12d96b63f8921554c3e10fdf7a082b9e",
+      "matching_sources": [
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/vehicle/physics.rs",
+      "sha256": "ec54004e89a4d639f0aa52175cb734dae1127a87fb1636ce3bc4254344b0f56b",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/vehicle/presets.rs",
+      "sha256": "27bedb9b3654ffb4882ff5668d983574eceb9a93c66a79bbbab8f0e009fd3620",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/vehicle/solver.rs",
+      "sha256": "9fd35fc7ac1c34e758aeb86c6238db400cde6935ad61040d86e50927ae12c586",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/vehicle/telemetry.rs",
+      "sha256": "fdedb5f32a4720c61c2c2c7f8ec1a204d9ce7f8c589b947c5ca0c063db86c63b",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/vehicle/testbed.rs",
+      "sha256": "e8de9b64560e1b094bdc023a4584364b47ce1f5a2f784527d1b13a3250502ebe",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/vehicle/tire.rs",
+      "sha256": "d4b4815efa3543980855bfcb7c6eb5d597a845b13ef348be4ec3d4d213494b67",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/vehicle/transmission.rs",
+      "sha256": "cb540c05287cbb6e7e7d9179fe55c484cdf2963779b2e79f99a7733892b0bc23",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/vehicle/wheels.rs",
+      "sha256": "307d0c5334ad69229b48fe7a8eb125cfa520881c42d02285e4ab6e56d4af971b",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/world/barriers.rs",
+      "sha256": "5b8ee7bcde4e46022b5d6bbc6c59007693833ce98fed4d7af9a5165b800c034e",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/world/lighting.rs",
+      "sha256": "6ea69dfa3b70711468283d79a08b312217eada5ca65e7b1c7edc2f73e3c3ee60",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/world/mesh_builder.rs",
+      "sha256": "d54d6d491fb637866217d38d6def7b67a5b95306902c45cf93f527b67eb3a307",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/world/mod.rs",
+      "sha256": "429a2f02ae9631936fdf7acc33f2764b01819e1d123f4d3843df669677af6f46",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "src/world/road.rs",
+      "sha256": "30aec6dfd2518d3c6da504b5aa86ec2942e4c0c4842ab5f8e5bde48e0323b4e5",
+      "matching_sources": [
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "tests/app_smoke.rs",
+      "sha256": "910c5123a530d0d758fbff66d064e0ed127dc4643161ee70592b1bff0b504c97",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    },
+    {
+      "path": "tests/physics_validation.rs",
+      "sha256": "96c0eea3d2144bfaffc4d3faa2655a1b4c0f63ce584d2fb8b92b5342c0559aeb",
+      "matching_sources": [
+        "veyron_sim_code.tar.gz",
+        "veyron_sim_update.tar.gz",
+        "veyron_sim_src.tar.gz"
+      ]
+    }
+  ]
+}

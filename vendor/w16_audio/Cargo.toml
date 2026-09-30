@@ -1,0 +1,13 @@
+[package]
+name = "w16_audio"
+version = "1.0.0"
+edition = "2021"
+description = "Bevy 0.19 plugin driving the W16 Hypercar racing sound pack (engine RPM loops, turbo, tyres, wind, impacts, crashes)"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+# `wav` enables the sample-exact 16-bit WAV loops, `vorbis` the OGG one-shots (Bevy default).
+bevy = { version = "0.19.1", default-features = false, features = ["bevy_audio", "bevy_asset", "bevy_log", "vorbis", "wav", "multi_threaded"] }
+
+
+

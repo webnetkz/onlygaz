@@ -1,0 +1,55 @@
+[package]
+name = "veyron_sim"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Offline driving simulator built on Bevy + Avian3D"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+# `experimental_pbr_pcss` enables percentage-closer soft shadows, where the
+# penumbra widens with the distance between occluder and receiver. It is what
+# stops the car's shadow from having a razor edge two hundred metres away.
+bevy = { version = "0.19", features = ["experimental_pbr_pcss", "jpeg", "mp3", "serialize", "wav"] }
+bevy_resvg = "2.5"
+avian3d = "0.7"
+ron = "0.12"
+serde = { version = "1", features = ["derive"] }
+fastrand = "2.5"
+wgpu-types = "29"
+w16_audio = { path = "vendor/w16_audio" }
+
+[dev-dependencies]
+# Parse the custom fullscreen shader in tests so post-processing changes fail
+# fast without launching a window or producing a release build.
+naga = { version = "29", features = ["wgsl-in"] }
+
+# Bevy uses BLAKE3 for asset identifiers. The pure-Rust implementation keeps
+# cross-compiled Windows releases self-contained and avoids a dependency on a
+# Visual Studio assembler; Cargo features are unified with Bevy's copy only for
+# the Windows target.
+[target.'cfg(windows)'.dependencies]
+blake3 = { version = "1.8", features = ["pure"] }
+
+# Debug builds still need fast dependencies, otherwise the sim runs at 5 FPS.
+[profile.dev]
+opt-level = 1
+# Line tables are enough for a useful backtrace and cut the binary from about
+# two gigabytes to a couple of hundred megabytes.
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 3
+debug = false
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+
+# `cargo test --release` must keep unwinding.
+[profile.test]
+opt-level = 2
+
+[profile.bench]
+opt-level = 3

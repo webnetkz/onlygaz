@@ -1,0 +1,20 @@
+W16 Hypercar Racing SFX Pack — лицензия
+=========================================
+
+Звуки (все файлы в assets/ и masters_wav24/)
+  Созданы процедурно специально для владельца пака. Их можно без ограничений
+  использовать, изменять и распространять в коммерческих и некоммерческих
+  проектах: играх, видео, трейлерах. Роялти нет, указывать автора не нужно.
+
+Код (bevy_plugin/, tools/generator/)
+  Лицензия MIT или Apache-2.0, на ваш выбор.
+
+«Bugatti» и «Veyron» — товарные знаки их владельцев. Звуки — оригинальный синтез,
+вдохновлённый двигателем W16 с четырьмя турбинами. Записей этого автомобиля в паке нет.
+
+-----------------------------------------------------------------------------
+English
+  Audio: procedurally synthesised for the pack owner; royalty-free use,
+  modification and distribution in commercial and non-commercial projects.
+  Code: MIT OR Apache-2.0. "Bugatti" and "Veyron" are trademarks of their
+  respective owners; the pack contains no recordings of that vehicle.

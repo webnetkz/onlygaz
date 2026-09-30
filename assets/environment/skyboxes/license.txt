@@ -1,0 +1,29 @@
+Veyron Sim skyboxes — 2026-09-18
+================================
+
+Both runtime cubemaps are projected from continuous, photographed 8K panoramas.
+No separately generated cube faces are used. Licence: CC0 1.0 Universal.
+
+DAY: day.png
+  Kloppenheim 03 (Pure Sky), Poly Haven
+  Authors: Greg Zaal (photography), Jarod Guest (sky editing)
+  Source: https://polyhaven.com/a/kloppenheim_03_puresky
+  Download: https://dl.polyhaven.org/file/ph-assets/HDRIs/extra/Tonemapped%20JPG/kloppenheim_03_puresky.jpg
+  Source SHA256: a4aec1c5a8fd956cf35797c35aed3dfd53f8b4936a0cd7d137f23202e737ce8d
+
+NIGHT: night.png
+  Qwantani Moon Noon (Pure Sky), Poly Haven
+  Authors: Greg Zaal (photography), Jarod Guest (sky editing)
+  Source: https://polyhaven.com/a/qwantani_moon_noon_puresky
+  Download: https://dl.polyhaven.org/file/ph-assets/HDRIs/extra/Tonemapped%20JPG/qwantani_moon_noon_puresky.jpg
+  Source SHA256: 2260a85c33b8647bb58ee4ad4c987323b4c8b415671d8bdf5a785aa764e8d6d2
+
+Licence: https://polyhaven.com/license
+CC0: https://creativecommons.org/publicdomain/zero/1.0/
+
+Conversion: tools/build_skybox.py. Six 2048x2048 faces in WebGPU order:
++X, -X, +Y, -Y, +Z, -Z, stacked vertically. Pixel-centred bilinear projection,
+wrapped longitude, identical exposure on every face, lossless RGB PNG.
+All 12 edge pairs are checked against neighbouring interior pixel gradients.
+The renderer explicitly uses linear filtering and clamp-to-edge cube sampling.
+Downloaded source panoramas and edge-check reports: .asset_sources/sky/.
