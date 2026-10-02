@@ -1,29 +1,34 @@
 # OnlyGAZ для Android
 
 Отдельная сборка игры для телефонов на Android: горизонтальный экран,
-сенсорное управление, руление кнопками или наклоном телефона. Desktop-версия
-(Windows / macOS, Microsoft Store) собирается из корня репозитория как раньше
-и этими изменениями не затрагивается.
+сенсорное управление, руление кнопками или наклоном телефона. Папка `android/`
+— обычный проект Android Studio (Gradle): игру можно запускать на телефоне или
+эмуляторе прямо из Android Studio и собирать App Bundle (AAB) для Google Play.
+Desktop-версия (Windows / macOS, Microsoft Store) собирается из корня
+репозитория как раньше и этими изменениями не затрагивается.
 
 | | |
 |---|---|
-| Пакет | `kz.webnet.onlygaz`, версия 1.0.1 (versionCode 10001) |
-| Устройства | Android 8.0+ (API 26), 64-битный ARM (`arm64-v8a`), Vulkan или OpenGL ES 3 |
+| Пакет | `kz.webnet.onlygaz`, версия 1.0.2 (versionCode 10002); отладочная сборка — `kz.webnet.onlygaz.debug` |
+| Устройства | Android 8.0+ (minSdk 26), targetSdk 36 (Android 16), 64-битный ARM (`arm64-v8a`), Vulkan или OpenGL ES 3 |
 | Ориентация | горизонтальная; при перевороте телефона на 180° картинка поворачивается следом. Полноэкранный режим без системных панелей |
-| Готовый файл | `android/build/OnlyGAZ-1.0.1.apk` |
+| Сборка | Android Gradle Plugin 8.13.2, Gradle 8.14.3 (wrapper), NDK 27.0.12077973, Rust через rustup |
 
 ## Управление
 
-Во время заезда на экране:
+Во время заезда на экране кнопки-иконки:
 
 | Кнопка | Где | Действие |
 |---|---|---|
-| **◀ ▶** | слева внизу, под левым большим пальцем | руль (режим «Кнопки») |
-| **GAS** | справа внизу | газ |
-| **BRAKE** | слева от GAS (в режиме наклона — слева внизу) | тормоз; удерживайте на месте, чтобы включить задний ход |
-| **NITRO** | над GAS | нитро (само по себе тоже даёт полный газ) |
+| **◀ ▶** стрелки | слева внизу, под левым большим пальцем | руль (режим «Кнопки») |
+| зелёная **педаль газа** | справа внизу | газ |
+| красная **педаль тормоза** | слева от газа (в режиме наклона — слева внизу) | тормоз; удерживайте на месте, чтобы включить задний ход |
+| синее **пламя** | над педалью газа | нитро (само по себе тоже даёт полный газ) |
 | **❚❚** | справа вверху | пауза и меню: продолжить, **EXIT TO MAIN MENU**, графика, управление, звук |
-| **CAM** | рядом с паузой | следующая камера |
+| **камера** | рядом с паузой | следующая камера |
+
+Нажатая кнопка подсвечивается: иконка становится белой. Иконки лежат в
+`assets/ui/touch/` и рисуются скриптом `tools/make_touch_icons.py`.
 
 Пальцы отслеживаются независимо: можно одновременно держать газ, рулить и
 жать нитро, а также переводить палец с одной педали на другую. Системная
@@ -53,66 +58,177 @@
 кнопки меню срабатывают при отпускании пальца (поэтому прокрутка не меняет
 настройки случайно).
 
+## Android Studio: запуск и отладка
+
+### Что установить (один раз)
+
+1. **Android Studio** Narwhal 3 Feature Drop (2025.1.3) или новее.
+2. В Android Studio: **Settings → Languages & Frameworks → Android SDK**
+   - вкладка **SDK Platforms**: Android 16 (API 36);
+   - вкладка **SDK Tools**: **NDK (Side by side)**. Проект настроен на NDK
+     27.0.12077973 (флажок *Show Package Details* показывает версии); если
+     установлена только другая версия, сборка возьмёт самую новую из
+     установленных.
+3. **Rust** через rustup (в Терминале):
+   ```sh
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   rustup target add aarch64-linux-android
+   ```
+   Нужен Rust 1.95 или новее (`rustup update`). Если цель
+   `aarch64-linux-android` не установлена, Gradle сам вызовет
+   `rustup target add` при первой сборке.
+4. **Xcode Command Line Tools** (компилятор для сборочных скриптов Rust):
+   `xcode-select --install`.
+
+Python и другие инструменты не нужны: уменьшение текстур для телефона
+выполняет сама сборка.
+
+### Открыть проект
+
+**File → Open** → папка `onlygaz/android` → **Trust Project**. При первом
+открытии Android Studio скачает Gradle и плагин Android (нужен интернет) и
+создаст `android/local.properties` с путём к Android SDK. Синхронизация
+(Gradle Sync) Rust не компилирует — это происходит при сборке.
+
+### Запуск на телефоне
+
+1. На телефоне включите режим разработчика (Настройки → О телефоне → 7 раз
+   нажать «Номер сборки») и **Отладку по USB**, подключите телефон кабелем
+   (или через **Pair Devices Using Wi-Fi** в Android Studio).
+2. Выберите телефон в списке устройств вверху окна и нажмите **Run ▶**
+   (конфигурация `app`).
+
+Первая сборка идёт 5–15 минут: компилируется весь Rust-код игры для Android и
+готовятся текстуры. После изменения кода игры пересборка занимает 1–3 минуты
+(для отладочной сборки используется профиль Cargo `android-dev`: оптимизация
+как в release, но без LTO). Сборка компилирует библиотеку только для
+архитектуры выбранного устройства.
+
+Устанавливается приложение **OnlyGAZ Debug** (`kz.webnet.onlygaz.debug`) — оно
+ставится рядом с обычной версией и хранит свои настройки отдельно.
+
+**Логи** — окно **Logcat** (фильтр `package:mine`). Сообщения игры идут от
+Bevy, а если Rust-код упадёт, в Logcat будет строка уровня **Fatal** с тегом
+`OnlyGAZ`: текст ошибки и место в исходниках.
+
+### Эмулятор
+
+**Device Manager → + → Create Virtual Device** → телефон (например, Pixel 9) →
+системный образ **arm64-v8a** (Mac с Apple Silicon) с API 35 или 36 → в
+настройках **Graphics: Hardware**. На Mac с процессором Intel используйте образ
+x86_64: сборка сама скомпилирует библиотеку под x86_64 (Gradle установит цель
+`x86_64-linux-android`).
+
+Эмулятор подходит для проверки меню и управления, но 3D-графика в нём
+работает намного медленнее, чем на телефоне. Наклон можно проверить в
+**Extended Controls (⋯) → Virtual sensors → Device rotation**.
+
+### Как устроена сборка
+
+| Файл | Что делает |
+|---|---|
+| `settings.gradle.kts`, `build.gradle.kts` | проект Gradle, версия плагина Android |
+| `app/build.gradle.kts` | приложение: пакет, версии SDK, подпись, подключение Rust и ассетов |
+| `app/src/main/` | `AndroidManifest.xml`, `MainActivity.java` (NativeActivity), иконки, тема |
+| `buildSrc/` | задачи сборки: `CargoBuildTask` (cargo + clang из NDK → `lib/<abi>/libonlygaz.so`), `PrepareGameAssetsTask` (копия `assets/` с уменьшенными текстурами) |
+| `gradle.properties` | версия игры (`onlygaz.versionCode`, `onlygaz.versionName`), minSdk/targetSdk, архитектуры для AAB/APK |
+| `Cargo.toml`, `src/lib.rs` | Rust-библиотека `libonlygaz.so` (сама игра — крейт в корне репозитория) |
+
+Задачи Gradle: `cargoBuildDebug` / `cargoBuildRelease`,
+`prepareDebugGameAssets` / `prepareReleaseGameAssets` — они запускаются
+автоматически в составе `assembleDebug`, `bundleRelease` и т. д.
+Пути к cargo и NDK находятся автоматически (`~/.cargo/bin/cargo`,
+`<SDK>/ndk/...`); при необходимости их можно задать в `android/local.properties`
+(`onlygaz.cargo=…`, `onlygaz.ndkDir=…`, остальные параметры перечислены в
+`gradle.properties`).
+
+## Google Play: App Bundle (AAB)
+
+### Собрать AAB
+
+В Android Studio: **Build → Generate Signed App Bundle or APK… → Android App
+Bundle** → ключ `android/keystore/onlygaz-release.jks` (alias и пароль — в
+`android/keystore/keystore.properties`) → вариант **release** → **Create**.
+Файл появится в `android/app/release/app-release.aab`.
+
+Или в Терминале:
+
+```sh
+cd android
+./gradlew bundleRelease
+# -> android/app/build/outputs/bundle/release/app-release.aab
+```
+
+Так AAB подписывается ключом из `android/keystore/` автоматически (если папки
+нет, получится неподписанный AAB). APK для установки вручную собирает
+`./gradlew assembleRelease` (`app/build/outputs/apk/release/app-release.apk`).
+
+**Перед каждой новой загрузкой в Play увеличивайте `onlygaz.versionCode`** в
+`android/gradle.properties` (и при желании `onlygaz.versionName`).
+
+### Загрузка в Play Console
+
+1. Play Console → **Создать приложение** → **Тестирование → Внутреннее
+   тестирование → Создать выпуск** → загрузите AAB.
+2. **Подпись приложений Google Play** обязательна для AAB. Ключ
+   `onlygaz-release.jks` становится ключом загрузки (upload key), а ключом
+   подписи по умолчанию Google создаёт свой. Если нужно, чтобы версия из Play
+   устанавливалась поверх уже установленного вручную APK, при настройке подписи
+   выберите загрузку собственного ключа (тот же `onlygaz-release.jks`); иначе
+   APK, установленный вручную, перед установкой из Play придётся удалить.
+3. Play Console также попросит заполнить карточку: описание, скриншоты
+   (горизонтальные), возрастной рейтинг, раздел Data safety и ссылку на
+   политику конфиденциальности.
+
+Требования Google Play выполнены: targetSdk 36 (обязателен для новых
+приложений и обновлений с 31 августа 2026), 64-битная библиотека, страницы
+памяти 16 КБ. AAB весит около 200 МБ; лимит базового модуля — 500 МБ (сжатый
+размер загрузки), поэтому Play Asset Delivery не нужен.
+
+## Сборка APK без Android Studio
+
+`android/build_apk.sh` собирает тот же APK (release, `arm64-v8a`) из тех же
+исходников `app/src/main` без Gradle: компилирует `libonlygaz.so`, готовит
+ассеты тем же кодом, что и Gradle, собирает `MainActivity`, упаковывает и
+подписывает APK. Нужны JDK 11+, Android SDK (build-tools, платформа), NDK и
+Rust; подробности — в начале скрипта.
+
+```sh
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+./android/build_apk.sh                  # -> android/build/OnlyGAZ-<версия>.apk
+SKIP_CARGO=1 ./android/build_apk.sh     # только переупаковать (без компиляции Rust)
+REUSE_ASSETS=1 ./android/build_apk.sh   # не готовить ассеты заново
+```
+
 ## Установка APK на телефон
 
-1. Скопируйте `OnlyGAZ-1.0.1.apk` на телефон (USB, облако, мессенджер).
+1. Скопируйте APK на телефон (USB, облако, мессенджер).
 2. Откройте файл и разрешите установку из этого источника, когда Android
    спросит.
 
 Либо с компьютера при включённой отладке по USB:
 
 ```sh
-adb install -r android/build/OnlyGAZ-1.0.1.apk
+adb install -r android/build/OnlyGAZ-1.0.2.apk
 ```
 
 Настройки хранятся во внутренней памяти приложения и сохраняются при
 обновлении. Обновлять установленную игру можно только APK, подписанным тем же
 ключом (см. «Подпись»).
 
-## Сборка
+## Подпись
 
-Скрипт `android/build_apk.sh` компилирует Rust-библиотеку `libonlygaz.so`,
-готовит уменьшенные для телефона текстуры, собирает `MainActivity`, упаковывает
-и подписывает APK. На Mac с Android Studio:
+Ключ `android/keystore/onlygaz-release.jks` и пароль к нему
+(`android/keystore/keystore.properties`) создаются при первом запуске
+`build_apk.sh` и используются и Gradle-сборкой. Папка `android/keystore/`
+исключена из git. **Сохраните её резервную копию в надёжном месте**: без этого
+ключа нельзя выпускать обновления, которые установятся поверх текущей версии,
+а в Google Play он служит ключом загрузки. Другой ключ для `build_apk.sh`
+можно передать переменными `ONLYGAZ_KEYSTORE`, `ONLYGAZ_KEYSTORE_PASS`,
+`ONLYGAZ_KEY_ALIAS`.
 
-```sh
-# один раз
-rustup target add aarch64-linux-android
-pip3 install pillow
-# в Android Studio → SDK Manager: Android SDK Platform, Build-Tools, NDK (Side by side)
-export ANDROID_HOME="$HOME/Library/Android/sdk"
-
-# сборка (первый раз — 20–40 минут)
-./android/build_apk.sh
-```
-
-Нужны Rust 1.95+, JDK 17+ (входит в Android Studio:
-`export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`)
-и Python 3 с Pillow. Скрипт сам находит последние Build-Tools, платформу и NDK
-в `$ANDROID_HOME` (или используйте `ANDROID_NDK_HOME`). Без Android Studio
-подходит и минимальный вариант (sysroot NDK + системный clang + пакеты
-Debian/Ubuntu) — он описан в начале скрипта; так была собрана эта версия.
-
-Полезные варианты:
-
-```sh
-SKIP_CARGO=1 ./android/build_apk.sh      # только переупаковать (без компиляции Rust)
-REUSE_ASSETS=1 ./android/build_apk.sh    # не готовить ассеты заново
-```
-
-Номер версии меняется в `android/AndroidManifest.xml` (`versionCode` нужно
-увеличивать при каждом выпуске).
-
-### Подпись
-
-При первой сборке создаётся ключ `android/keystore/onlygaz-release.jks`, а
-пароль к нему записывается в `android/keystore/keystore.properties`. Папка
-`android/keystore/` исключена из git. **Сохраните её резервную копию в надёжном
-месте**: без этого ключа нельзя выпускать обновления, которые установятся
-поверх текущей версии. Другой ключ можно передать переменными
-`ONLYGAZ_KEYSTORE`, `ONLYGAZ_KEYSTORE_PASS`, `ONLYGAZ_KEY_ALIAS`.
-
-### Просмотр телефонного интерфейса на компьютере
+## Просмотр телефонного интерфейса на компьютере
 
 ```sh
 cargo run --release --features mobile --example mobile_preview
@@ -125,18 +241,18 @@ cargo run --release --features mobile --example mobile_preview
 
 ## Что сделано в коде
 
-- `Cargo.toml` — новая feature `mobile`; Android-зависимости (`ndk-sys`, `jni`)
-  подключаются только для `target_os = "android"`.
-- `android/` — отдельный Cargo-пакет (cdylib `libonlygaz`, NativeActivity),
-  `AndroidManifest.xml` (горизонтальная ориентация), ресурсы, `MainActivity.java`
-  (полноэкранный режим, экран не гаснет, отступы для выреза камеры, поворот
-  экрана), скрипты сборки.
+- `Cargo.toml` (корень) — feature `mobile`; Android-зависимости (`ndk-sys`,
+  `jni`) подключаются только для `target_os = "android"`.
+- `android/` — проект Android Studio (см. «Как устроена сборка») и отдельный
+  Cargo-пакет (cdylib `libonlygaz`, NativeActivity). `MainActivity.java`:
+  полноэкранный режим, экран не гаснет, отступы для выреза камеры, поворот
+  экрана, кнопка «Назад» передаётся игре.
 - `src/mobile/` — сенсорные кнопки с мультитачем, руление наклоном
   (датчик гравитации / акселерометр в отдельном потоке, включается только в
   режиме TILT, показания пересчитываются с учётом поворота экрана), касания в
   меню (нажатие при отпускании, прокрутка пальцем), масштаб интерфейса под
   экран, безопасные зоны, кнопка «Назад», пауза и выключение звука при
-  сворачивании, графика по умолчанию для телефонов.
+  сворачивании, графика по умолчанию для телефонов, вывод ошибок Rust в Logcat.
 - `src/ui/menu/phone.rs` — телефонная версия меню (те же обработчики, что и
   на компьютере): компактные панели в две колонки, BACK в заголовке, страница
   CONTROLS для сенсорного управления; в меню паузы добавлен выход в главное
@@ -144,18 +260,13 @@ cargo run --release --features mobile --example mobile_preview
 - HUD в телефонной версии — компактная панель слева вверху, она скрывается в
   меню.
 
-## Ограничения и следующие шаги
+## Ограничения
 
-- Проверено на компьютере в эмуляции телефонного экрана (скриншоты, касания,
-  кнопка «Назад»), на реальном телефоне сборку нужно проверить вам: особенно
-  производительность и чувствительность наклона.
-- APK около 195 МБ: ~37 МБ — сама игра, остальное — музыка, звуки, модели и
-  текстуры (уже уменьшенные для телефона). Для установки напрямую размер не
-  важен. В **Google Play** APK больше не принимают — нужен формат AAB, а у
-  базового модуля лимит 200 МБ, поэтому радио или часть ассетов, вероятно,
-  придётся вынести в Play Asset Delivery; также понадобится ключ загрузки и
-  карточка приложения в Play Console.
-- Сборка только для 64-битных ARM-телефонов (это практически все устройства
-  последних лет); эмулятор x86_64 не поддерживается.
+- Игра проверена в эмуляции телефонного экрана на компьютере (скриншоты,
+  касания, кнопка «Назад»). На реальном телефоне её нужно проверить вам:
+  особенно производительность и чувствительность наклона.
+- Сборка рассчитана на 64-битные ARM-телефоны (практически все устройства
+  последних лет). Для эмулятора на Intel-Mac или Chromebook можно добавить
+  `x86_64` в `onlygaz.abis`.
 - Производительность зависит от телефона: на слабых устройствах держите профиль
   Performance и трафик Low.

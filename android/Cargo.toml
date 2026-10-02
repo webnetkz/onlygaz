@@ -6,11 +6,12 @@
 # compact landscape menus and phone graphics defaults. The Windows/macOS game is built
 # from the repository root exactly as before and is not affected.
 #
-# Build the APK with `android/build_apk.sh` (see android/README.md).
+# Built by Gradle (Android Studio, `./gradlew bundleRelease`) or by
+# `android/build_apk.sh`; see android/README.md.
 
 [package]
 name = "onlygaz_android"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2024"
 rust-version = "1.95"
 license = "MIT OR Apache-2.0"
@@ -23,8 +24,9 @@ path = "src/lib.rs"
 
 [dependencies]
 veyron_sim = { path = "..", features = ["mobile"] }
-# NativeActivity needs no Java/Gradle runtime from Maven; the tiny
-# MainActivity subclass in `java/` only enables immersive full screen.
+# NativeActivity needs no Java libraries; the small MainActivity subclass
+# (app/src/main/java) only adds immersive full screen, cut-out insets and the
+# display rotation.
 bevy = { version = "0.19", default-features = false, features = ["android-native-activity"] }
 
 # A standalone workspace: the desktop crate at the repository root keeps its
@@ -36,6 +38,16 @@ opt-level = 3
 lto = "thin"
 # Symbols are not needed on the phone and would triple the APK size.
 strip = true
+
+# Android Studio's debug build (Run): release optimisation without LTO, so a
+# change to the game re-links in a fraction of the release time and still
+# runs at full speed on the phone.
+[profile.android-dev]
+inherits = "release"
+lto = false
+incremental = true
+codegen-units = 64
+strip = "debuginfo"
 
 [profile.dev]
 opt-level = 1

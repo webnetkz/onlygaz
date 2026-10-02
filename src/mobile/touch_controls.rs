@@ -1,12 +1,15 @@
 //! On-screen driving controls: gas, brake, nitro, steering, pause and camera.
 //!
+//! Every control is an icon (assets/ui/touch, drawn by
+//! tools/make_touch_icons.py) tinted with the control's colour: pedals for
+//! gas and brake, a flame for nitro.
+//!
 //! The controls are plain UI nodes without Bevy's `Interaction`, because that
 //! only tracks a single pointer. Here every finger is hit-tested against
 //! every control each frame, so the player can hold GAS, steer and fire NITRO
 //! at the same time, and can slide a thumb from one pedal to the other.
 
 use bevy::prelude::*;
-use bevy::text::FontSize;
 use bevy::ui::UiSystems;
 use bevy::window::PrimaryWindow;
 
@@ -96,6 +99,10 @@ impl TouchControlState {
 #[derive(Component)]
 struct TouchOverlayRoot;
 
+/// The icon inside a control; turns white while the control is held.
+#[derive(Component)]
+struct TouchIcon(TouchControlKind);
+
 /// Fingers within this fraction of a control's size still count as on it.
 const HIT_SLOP: f32 = 0.12;
 // Sizes in UI pixels of the landscape canvas (see `layout::DESIGN_WIDTH`):
@@ -179,22 +186,37 @@ fn placement(kind: TouchControlKind, show_arrows: bool, safe: SafeArea) -> Optio
     }
 }
 
-fn label_for(kind: TouchControlKind) -> &'static str {
+/// Icon image of a control.
+fn icon_for(kind: TouchControlKind) -> &'static str {
     match kind {
-        TouchControlKind::Gas => "GAS",
-        TouchControlKind::Brake => "BRAKE",
-        TouchControlKind::Nitro => "NITRO",
-        TouchControlKind::Camera => "CAM",
-        TouchControlKind::SteerLeft | TouchControlKind::SteerRight | TouchControlKind::Menu => "",
+        TouchControlKind::SteerLeft => "ui/touch/arrow_left.png",
+        TouchControlKind::SteerRight => "ui/touch/arrow_right.png",
+        TouchControlKind::Gas => "ui/touch/gas.png",
+        TouchControlKind::Brake => "ui/touch/brake.png",
+        TouchControlKind::Nitro => "ui/touch/nitro.png",
+        TouchControlKind::Menu => "ui/touch/pause.png",
+        TouchControlKind::Camera => "ui/touch/camera.png",
     }
 }
 
-fn icon_for(kind: TouchControlKind) -> Option<&'static str> {
+/// Size of the icon inside a button of `button` size [UI px]. Keeps each
+/// image's aspect and grows with the button (the brake is larger in tilt
+/// mode).
+fn icon_size(kind: TouchControlKind, button: Vec2) -> Vec2 {
+    let side = button.x.min(button.y);
     match kind {
-        TouchControlKind::SteerLeft => Some("ui/touch/arrow_left.png"),
-        TouchControlKind::SteerRight => Some("ui/touch/arrow_right.png"),
-        TouchControlKind::Menu => Some("ui/touch/pause.png"),
-        _ => None,
+        TouchControlKind::Gas => {
+            // gas.png is 128 x 208: a tall pedal for the tall button.
+            let width = (button.x * 0.55).round();
+            Vec2::new(width, (width * 208.0 / 128.0).round())
+        }
+        TouchControlKind::SteerLeft | TouchControlKind::SteerRight => {
+            Vec2::splat((side * 0.48).round())
+        }
+        TouchControlKind::Brake => Vec2::splat((side * 0.68).round()),
+        TouchControlKind::Nitro => Vec2::splat((side * 0.64).round()),
+        TouchControlKind::Menu => Vec2::splat((side * 0.47).round()),
+        TouchControlKind::Camera => Vec2::splat((side * 0.57).round()),
     }
 }
 
@@ -229,7 +251,6 @@ impl Plugin for TouchControlsPlugin {
 }
 
 fn spawn_touch_controls(mut commands: Commands, assets: Res<AssetServer>) {
-    let font: Handle<Font> = assets.load("fonts/ubuntu/Ubuntu-Bold.ttf");
     commands
         .spawn((
             Name::new("Touch controls"),
@@ -264,39 +285,18 @@ fn spawn_touch_controls(mut commands: Commands, assets: Res<AssetServer>) {
                     BackgroundColor(FILL),
                     BorderColor::all(kind.accent().with_alpha(0.55)),
                 ));
+                // Sized for real by `arrange_touch_controls`.
+                let size = icon_size(kind, SMALL_SIZE);
                 control.with_children(|content| {
-                    if let Some(icon) = icon_for(kind) {
-                        let size = if kind == TouchControlKind::Menu {
-                            28.0
-                        } else {
-                            54.0
-                        };
-                        content.spawn((
-                            ImageNode::new(assets.load(icon)).with_color(kind.accent()),
-                            Node {
-                                width: px(size),
-                                height: px(size),
-                                ..default()
-                            },
-                        ));
-                    }
-                    let label = label_for(kind);
-                    if !label.is_empty() {
-                        let size = match kind {
-                            TouchControlKind::Camera => 14.0,
-                            TouchControlKind::Nitro => 17.0,
-                            _ => 19.0,
-                        };
-                        content.spawn((
-                            Text::new(label),
-                            TextFont {
-                                font: font.clone().into(),
-                                font_size: FontSize::Px(size),
-                                ..default()
-                            },
-                            TextColor(kind.accent()),
-                        ));
-                    }
+                    content.spawn((
+                        TouchIcon(kind),
+                        ImageNode::new(assets.load(icon_for(kind))).with_color(kind.accent()),
+                        Node {
+                            width: px(size.x),
+                            height: px(size.y),
+                            ..default()
+                        },
+                    ));
                 });
             }
         });
@@ -426,7 +426,8 @@ fn arrange_touch_controls(
     safe_area: Res<SafeArea>,
     ui_scale: Res<UiScale>,
     mut roots: Query<&mut Visibility, With<TouchOverlayRoot>>,
-    mut controls: Query<(&TouchControlKind, &mut Node)>,
+    mut controls: Query<(&TouchControlKind, &mut Node), Without<TouchIcon>>,
+    mut icons: Query<(&TouchIcon, &mut Node), Without<TouchControlKind>>,
     mut last: Local<Option<(bool, SafeArea)>>,
 ) {
     let driving = *state.get() == GameState::Driving;
@@ -462,11 +463,19 @@ fn arrange_touch_controls(
             None => node.display = Display::None,
         }
     }
+    for (icon, mut node) in &mut icons {
+        if let Some(place) = placement(icon.0, show_arrows, safe) {
+            let size = icon_size(icon.0, place.size);
+            node.width = px(size.x);
+            node.height = px(size.y);
+        }
+    }
 }
 
 fn style_touch_controls(
     controls: Res<TouchControlState>,
     mut nodes: Query<(&TouchControlKind, &mut BackgroundColor, &mut BorderColor)>,
+    mut icons: Query<(&TouchIcon, &mut ImageNode)>,
 ) {
     if !controls.is_changed() {
         return;
@@ -482,6 +491,17 @@ fn style_touch_controls(
             *border = edge;
         }
     }
+    for (icon, mut image) in &mut icons {
+        let tint = icon_tint(icon.0, controls.held(icon.0));
+        if image.color != tint {
+            image.color = tint;
+        }
+    }
+}
+
+/// Icons show the control's colour, and turn white while it is held.
+fn icon_tint(kind: TouchControlKind, held: bool) -> Color {
+    if held { Color::WHITE } else { kind.accent() }
 }
 
 #[cfg(test)]
@@ -561,6 +581,30 @@ mod tests {
         let stack_top = nitro.bottom.unwrap() + nitro.size.y;
         let menu_bottom = menu.top.unwrap() + menu.size.y;
         assert!(stack_top + menu_bottom + GAP < super::super::layout::DESIGN_HEIGHT);
+    }
+
+    #[test]
+    fn every_control_has_an_icon_that_fits_its_button() {
+        let assets = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets");
+        for kind in TouchControlKind::ALL {
+            let icon = icon_for(kind);
+            assert!(assets.join(icon).is_file(), "missing {icon}");
+            for show_arrows in [true, false] {
+                if let Some(place) = placement(kind, show_arrows, SafeArea::default()) {
+                    let icon = icon_size(kind, place.size);
+                    assert!(
+                        icon.x + 8.0 <= place.size.x && icon.y + 8.0 <= place.size.y,
+                        "{kind:?}: {icon} does not fit {}",
+                        place.size
+                    );
+                }
+            }
+        }
+        assert_eq!(icon_tint(TouchControlKind::Brake, true), Color::WHITE);
+        assert_eq!(
+            icon_tint(TouchControlKind::Brake, false),
+            TouchControlKind::Brake.accent()
+        );
     }
 
     #[test]

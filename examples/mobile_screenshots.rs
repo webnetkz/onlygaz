@@ -163,7 +163,7 @@ struct Script {
 }
 
 /// How long a step waits for its button or control to appear.
-const RETRY_FOR_SECONDS: f64 = 15.0;
+const RETRY_FOR_SECONDS: f64 = 45.0;
 
 fn main() {
     let out = PathBuf::from(

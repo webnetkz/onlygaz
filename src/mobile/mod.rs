@@ -62,6 +62,8 @@ mod app {
     ///
     /// This is what the Android entry point (`android/src/lib.rs`) calls.
     pub fn run_mobile_app() {
+        #[cfg(target_os = "android")]
+        super::android::log_panics_to_logcat();
         let exit = build_mobile_app().run();
         info!("OnlyGAZ finished: {exit:?}");
         // Android keeps the process alive after the activity finishes and

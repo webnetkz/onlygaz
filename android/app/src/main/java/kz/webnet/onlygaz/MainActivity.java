@@ -23,8 +23,9 @@ import android.view.WindowManager;
  *       landscape orientations.</li>
  * </ul>
  *
- * It is compiled against API 23 so that no Google SDK download is needed;
- * newer APIs are reached through reflection.
+ * Gradle compiles it against API 36; android/build_apk.sh may compile the same
+ * file against API 23 (no Google SDK download needed), so APIs newer than 23
+ * are reached through reflection.
  */
 public class MainActivity extends NativeActivity {
     /** Cut-out safe insets in physical pixels (read by the native game). */

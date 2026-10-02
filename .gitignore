@@ -11,9 +11,21 @@ __pycache__/
 /dist/*
 !/dist/OnlyGAZ_StoreAssets/
 
-# Android build (android/build_apk.sh): Cargo output, staging, APKs.
+# Android build: Cargo output, android/build_apk.sh staging and APKs, and the
+# Gradle / Android Studio files that are created locally (local.properties
+# holds the path of the Android SDK on this computer).
 /android/target
 /android/build
+/android/.gradle
+/android/.kotlin
+/android/.idea
+/android/local.properties
+/android/captures
+/android/app/build
+/android/app/release
+/android/buildSrc/build
+/android/buildSrc/.gradle
+*.iml
 # Release signing key and its password. Back these up privately: every update
 # of the installed app must be signed with the same key. Never commit them.
 /android/keystore

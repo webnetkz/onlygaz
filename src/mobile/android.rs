@@ -8,8 +8,11 @@
 //! * Sensors report in the device's natural (portrait) axes. The game runs in
 //!   landscape and may be turned over by 180°, so readings are rotated into
 //!   screen axes with the current display rotation.
-//! * `MainActivity` (android/java) reports the rotation and publishes the
-//!   safe-area insets of display cut-outs; both are read here through JNI.
+//! * `MainActivity` (android/app/src/main/java) reports the rotation and
+//!   publishes the safe-area insets of display cut-outs; both are read here
+//!   through JNI.
+//! * Panic messages go to logcat (Android drops stderr), so a crash shows up
+//!   in Android Studio's Logcat window with its message and source location.
 
 use std::ffi::c_int;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
@@ -22,8 +25,11 @@ use ndk_sys as ffi;
 
 use super::layout::SafeArea;
 
-/// Package name registered in `AndroidManifest.xml`.
+/// Release package name; the debug build adds `.debug` (see
+/// [`package_name`]).
 const PACKAGE_NAME: &std::ffi::CStr = c"kz.webnet.onlygaz";
+/// Logcat tag of the game's own messages.
+const LOG_TAG: &std::ffi::CStr = c"OnlyGAZ";
 /// Sensor sampling period: 60 Hz is plenty for steering.
 const SAMPLING_PERIOD_US: i32 = 16_667;
 /// A reading older than this is treated as "no sensor data".
@@ -45,6 +51,49 @@ static EPOCH: OnceLock<Instant> = OnceLock::new();
 /// `Display.getRotation()`: 0, 1 (90°), 2 (180°) or 3 (270°). Landscape
 /// phones start in 90°.
 static DISPLAY_ROTATION: AtomicU32 = AtomicU32::new(1);
+
+/// Write panics to logcat as well: Android discards the standard error
+/// stream the default hook prints to. The previous hook still runs.
+pub fn log_panics_to_logcat() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let message = format!("{info}").replace('\0', " ");
+        if let Ok(message) = std::ffi::CString::new(message) {
+            // SAFETY: both pointers are valid NUL-terminated strings for the
+            // duration of the call.
+            unsafe {
+                ffi::__android_log_write(
+                    ffi::android_LogPriority::ANDROID_LOG_FATAL.0 as c_int,
+                    LOG_TAG.as_ptr(),
+                    message.as_ptr(),
+                );
+            }
+        }
+        previous(info);
+    }));
+}
+
+/// The running app's package name: `kz.webnet.onlygaz`, or
+/// `kz.webnet.onlygaz.debug` for the Android Studio debug build. The sensor
+/// service checks it against the app, so it is read from the process name
+/// (`/proc/self/cmdline`, which Android sets to the package name).
+fn package_name() -> std::ffi::CString {
+    std::fs::read("/proc/self/cmdline")
+        .ok()
+        .and_then(|bytes| {
+            let name = bytes.split(|byte| *byte == 0).next()?.to_vec();
+            let looks_like_package = !name.is_empty()
+                && name.contains(&b'.')
+                && !name.contains(&b'/')
+                && !name.contains(&b':');
+            if looks_like_package {
+                std::ffi::CString::new(name).ok()
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| PACKAGE_NAME.to_owned())
+}
 
 fn now_ms() -> u64 {
     EPOCH.get_or_init(Instant::now).elapsed().as_millis() as u64 + 1
@@ -89,7 +138,8 @@ fn sensor_thread(shared: Arc<SensorShared>) {
     // lifetime (the sensor manager and sensors are process singletons).
     unsafe {
         let looper = ffi::ALooper_prepare(ffi::ALOOPER_PREPARE_ALLOW_NON_CALLBACKS as c_int);
-        let manager = ffi::ASensorManager_getInstanceForPackage(PACKAGE_NAME.as_ptr());
+        let package = package_name();
+        let manager = ffi::ASensorManager_getInstanceForPackage(package.as_ptr());
         if looper.is_null() || manager.is_null() {
             warn!("tilt steering: no sensor manager");
             return;

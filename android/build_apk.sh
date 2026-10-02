@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
-# Build the OnlyGAZ Android APK (arm64-v8a, portrait, touch controls).
+# Build the OnlyGAZ Android APK (arm64-v8a, landscape, touch controls) without
+# Gradle. The usual way is Android Studio / Gradle (android/README.md); this
+# script packages the same sources (app/src/main) with the bare SDK tools.
 #
-#   android/build_apk.sh            # release APK -> android/build/OnlyGAZ-<version>.apk
-#   SKIP_CARGO=1 android/build_apk.sh   # repackage without recompiling Rust
+#   android/build_apk.sh                  # release APK -> android/build/OnlyGAZ-<version>.apk
+#   SKIP_CARGO=1 android/build_apk.sh     # repackage without recompiling Rust
+#   REUSE_ASSETS=1 android/build_apk.sh   # keep the prepared assets of the last run
+#
+# Version, minSdk and targetSdk come from android/gradle.properties.
 #
 # Works with either
 #   * a normal Android Studio setup: ANDROID_HOME (SDK with build-tools and a
@@ -14,6 +19,7 @@
 #     android-sdk-platform-23, and the Rust standard library built from source
 #     (rust-src + RUSTC_BOOTSTRAP; used automatically when the target is not
 #     installed through rustup).
+# A JDK 11+ (javac, java) is needed in both cases.
 #
 # Signing: uses $ONLYGAZ_KEYSTORE / $ONLYGAZ_KEYSTORE_PASS / $ONLYGAZ_KEY_ALIAS
 # when set, otherwise android/keystore/onlygaz-release.jks, which is created on
@@ -25,16 +31,23 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 BUILD="$HERE/build"
+MAIN="$HERE/app/src/main"
 TARGET=aarch64-linux-android
 ABI=arm64-v8a
-API=26
 LIB_NAME=onlygaz
+PACKAGE=kz.webnet.onlygaz
 
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
-VERSION_NAME="$(sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' "$HERE/AndroidManifest.xml" | head -1)"
-[ -n "$VERSION_NAME" ] || die "could not read versionName from AndroidManifest.xml"
+# Shared with the Gradle build.
+gradle_property() { sed -n "s/^$1=//p" "$HERE/gradle.properties" | head -1 | tr -d '\r'; }
+VERSION_CODE="$(gradle_property onlygaz.versionCode)"
+VERSION_NAME="$(gradle_property onlygaz.versionName)"
+API="$(gradle_property onlygaz.minSdk)"
+TARGET_SDK="$(gradle_property onlygaz.targetSdk)"
+[ -n "$VERSION_CODE" ] && [ -n "$VERSION_NAME" ] && [ -n "$API" ] && [ -n "$TARGET_SDK" ] ||
+    die "onlygaz.versionCode/versionName/minSdk/targetSdk missing in android/gradle.properties"
 
 SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
 
@@ -66,6 +79,7 @@ DX="$(tool dalvik-exchange)"
 [ -n "$APKSIGNER" ] || die "apksigner not found"
 [ -n "$D8$DX" ] || die "neither d8 nor dx (dalvik-exchange) found"
 command -v javac >/dev/null || die "javac (JDK 11+) not found"
+command -v java >/dev/null || die "java (JDK 11+) not found"
 
 # Platform used to compile resources and Java.
 PLATFORM_JAR=""
@@ -151,13 +165,19 @@ cp "$SO" "$STAGE/lib/$ABI/lib${LIB_NAME}.so"
 ASSETS="$BUILD/assets"
 if [ "${REUSE_ASSETS:-0}" = "1" ] && [ -d "$ASSETS" ]; then
     log "reusing prepared assets in $ASSETS"
-elif python3 -c "import PIL" >/dev/null 2>&1; then
-    log "preparing phone-sized assets"
-    python3 "$HERE/tools/prepare_assets.py" "$ROOT/assets" "$ASSETS" | tail -1
 else
-    log "Pillow not installed: packaging the desktop textures unchanged (pip install pillow)"
-    rm -rf "$ASSETS"
-    cp -R "$ROOT/assets" "$ASSETS"
+    # The same code as the Gradle build's prepare*GameAssets tasks.
+    log "preparing phone-sized assets"
+    TOOLS="$BUILD/tools"
+    rm -rf "$TOOLS"
+    mkdir -p "$TOOLS"
+    javac --release 11 -nowarn -d "$TOOLS" \
+        "$HERE/buildSrc/src/main/java/kz/webnet/onlygaz/build/GameAssets.java" 2>&1 |
+        grep -v "Picked up JAVA_TOOL_OPTIONS" || true
+    [ -f "$TOOLS/kz/webnet/onlygaz/build/GameAssets.class" ] || die "javac failed for GameAssets"
+    java -Xmx3g -cp "$TOOLS" kz.webnet.onlygaz.build.GameAssets "$ROOT/assets" "$ASSETS" 2>&1 |
+        grep -v "Picked up JAVA_TOOL_OPTIONS" | tail -1
+    [ -d "$ASSETS" ] || die "asset preparation failed"
 fi
 
 log "compiling MainActivity"
@@ -165,7 +185,7 @@ CLASSES="$BUILD/classes"
 rm -rf "$CLASSES"
 mkdir -p "$CLASSES"
 javac --release 8 -Xlint:-options -nowarn -classpath "$PLATFORM_JAR" -d "$CLASSES" \
-    "$HERE/java/kz/webnet/onlygaz/MainActivity.java" 2>&1 | grep -v "Picked up JAVA_TOOL_OPTIONS" || true
+    "$MAIN/java/kz/webnet/onlygaz/MainActivity.java" 2>&1 | grep -v "Picked up JAVA_TOOL_OPTIONS" || true
 [ -f "$CLASSES/kz/webnet/onlygaz/MainActivity.class" ] || die "javac failed"
 if [ -n "$D8" ]; then
     (cd "$CLASSES" && "$D8" --release --min-api "$API" --lib "$PLATFORM_JAR" --output "$STAGE" \
@@ -181,12 +201,23 @@ ALIGNED="$BUILD/aligned.apk"
 OUT="$BUILD/OnlyGAZ-${VERSION_NAME}.apk"
 rm -f "$UNSIGNED" "$ALIGNED" "$OUT"
 
-log "packaging resources and assets"
+# The Gradle-style manifest has no package attribute and a ${appLabel}
+# placeholder; aapt inserts the version and SDK levels.
+MANIFEST="$BUILD/AndroidManifest.xml"
+sed -e "s|<manifest |<manifest package=\"$PACKAGE\" |" -e 's|\${appLabel}|OnlyGAZ|g' \
+    "$MAIN/AndroidManifest.xml" >"$MANIFEST"
+grep -q "package=\"$PACKAGE\"" "$MANIFEST" || die "could not prepare AndroidManifest.xml"
+
+log "packaging resources and assets (versionCode $VERSION_CODE, targetSdk $TARGET_SDK)"
 "$AAPT" package -f \
-    -M "$HERE/AndroidManifest.xml" \
-    -S "$HERE/res" \
+    -M "$MANIFEST" \
+    -S "$MAIN/res" \
     -A "$ASSETS" \
     -I "$RESOURCE_BASE" \
+    --min-sdk-version "$API" \
+    --target-sdk-version "$TARGET_SDK" \
+    --version-code "$VERSION_CODE" \
+    --version-name "$VERSION_NAME" \
     -F "$UNSIGNED"
 (cd "$STAGE" && "$AAPT" add "$UNSIGNED" classes.dex "lib/$ABI/lib${LIB_NAME}.so" >/dev/null)
 

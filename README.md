@@ -96,11 +96,13 @@ configuration. These choices are saved in `settings.ron`.
 ## Android
 
 Отдельная сборка для телефонов находится в [`android/`](android/README.md):
-горизонтальный экран, сенсорные кнопки GAS / BRAKE / NITRO, руление кнопками
-◀ ▶ или наклоном телефона (выбирается в CONTROLS), кнопка паузы с выходом в
-главное меню. APK собирается командой `./android/build_apk.sh`; desktop-сборка
-от этого не меняется. Посмотреть телефонный интерфейс на компьютере:
-`cargo run --release --features mobile --example mobile_preview`.
+горизонтальный экран, сенсорные кнопки-иконки (педали газа и тормоза, пламя
+нитро), руление кнопками ◀ ▶ или наклоном телефона (выбирается в CONTROLS),
+кнопка паузы с выходом в главное меню. Папка `android/` открывается в Android Studio: запуск на
+телефоне или эмуляторе кнопкой Run, App Bundle (AAB) для Google Play —
+`./gradlew bundleRelease`. Без Gradle APK собирает `./android/build_apk.sh`.
+Desktop-сборка от этого не меняется. Посмотреть телефонный интерфейс на
+компьютере: `cargo run --release --features mobile --example mobile_preview`.
 
 ## Controls
 
