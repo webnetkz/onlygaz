@@ -1,0 +1,44 @@
+# Separate Android build of OnlyGAZ.
+#
+# This package only wraps the game library (`veyron_sim`, one directory up)
+# into the `libonlygaz.so` that Android's NativeActivity loads, with the
+# `mobile` feature enabled: touch pedals, steering buttons or tilt steering,
+# compact landscape menus and phone graphics defaults. The Windows/macOS game is built
+# from the repository root exactly as before and is not affected.
+#
+# Build the APK with `android/build_apk.sh` (see android/README.md).
+
+[package]
+name = "onlygaz_android"
+version = "1.0.1"
+edition = "2024"
+rust-version = "1.95"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lib]
+name = "onlygaz"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+veyron_sim = { path = "..", features = ["mobile"] }
+# NativeActivity needs no Java/Gradle runtime from Maven; the tiny
+# MainActivity subclass in `java/` only enables immersive full screen.
+bevy = { version = "0.19", default-features = false, features = ["android-native-activity"] }
+
+# A standalone workspace: the desktop crate at the repository root keeps its
+# own Cargo.lock, target directory and release profile.
+[workspace]
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+# Symbols are not needed on the phone and would triple the APK size.
+strip = true
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

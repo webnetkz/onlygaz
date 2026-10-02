@@ -16,6 +16,29 @@ use bevy_resvg::prelude::SvgPlugin;
 use crate::game::GameState;
 use crate::vehicle::controller::{ControlAction, KeyBindings};
 
+/// Which interface layout the game builds.
+///
+/// The desktop game never inserts this resource and keeps its monitor-sized
+/// menus. The phone build (`mobile` feature) inserts [`UiLayout::Phone`]
+/// before start-up, which switches the HUD and menus to their compact,
+/// touch-friendly variants for a landscape phone screen.
+#[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum UiLayout {
+    #[default]
+    Desktop,
+    Phone,
+}
+
+/// Run condition: the landscape desktop interface is active.
+pub fn desktop_layout(layout: Option<Res<UiLayout>>) -> bool {
+    layout.is_none_or(|layout| *layout == UiLayout::Desktop)
+}
+
+/// Run condition: the phone interface is active.
+pub fn phone_layout(layout: Option<Res<UiLayout>>) -> bool {
+    !desktop_layout(layout)
+}
+
 pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
@@ -65,7 +88,9 @@ impl Plugin for UiPlugin {
                     menu::handle_rebind_buttons,
                     menu::handle_radio_buttons,
                     menu::apply_rebind_key,
-                    menu::apply_display_settings,
+                    // Window mode and resolution belong to desktop monitors;
+                    // a phone always runs full screen at its native size.
+                    menu::apply_display_settings.run_if(desktop_layout),
                     menu::sync_button_hover,
                     menu::sync_graphics_menu,
                     menu::sync_controls_menu,

@@ -55,7 +55,11 @@ fn value(text: &str, size: f32) -> impl Bundle {
     )
 }
 
-pub fn spawn_hud(mut commands: Commands) {
+pub fn spawn_hud(mut commands: Commands, layout: Option<Res<crate::ui::UiLayout>>) {
+    if layout.as_deref() == Some(&crate::ui::UiLayout::Phone) {
+        spawn_phone_hud(&mut commands);
+        return;
+    }
     commands
         .spawn((
             Name::new("Hud"),
@@ -136,6 +140,84 @@ pub fn spawn_hud(mut commands: Commands) {
 
             panel.spawn((value("RADIO  —", 14.0), HudField::Radio));
             panel.spawn((value("", 15.0), HudField::Status));
+        });
+}
+
+/// Compact read-out for the phone build: it sits in the top-left corner,
+/// clear of the touch pedals and steering buttons in the bottom corners and
+/// the pause / camera buttons at the top right. The safe-area system keeps it
+/// clear of a camera cut-out.
+fn spawn_phone_hud(commands: &mut Commands) {
+    commands
+        .spawn((
+            Name::new("Hud"),
+            HudRoot,
+            Node {
+                position_type: PositionType::Absolute,
+                left: px(12),
+                top: px(12),
+                width: px(228),
+                flex_direction: FlexDirection::Column,
+                row_gap: px(4),
+                padding: UiRect::axes(px(12), px(10)),
+                border_radius: BorderRadius::all(px(10)),
+                ..default()
+            },
+            BackgroundColor(PANEL_BACKGROUND),
+        ))
+        .with_children(|panel| {
+            panel
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    justify_content: JustifyContent::SpaceBetween,
+                    align_items: AlignItems::FlexEnd,
+                    ..default()
+                })
+                .with_children(|row| {
+                    row.spawn((value("0 km/h", 30.0), HudField::Speed));
+                    row.spawn(Node {
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::FlexEnd,
+                        ..default()
+                    })
+                    .with_children(|column| {
+                        column.spawn(label("GEAR"));
+                        column.spawn((value("1", 22.0), HudField::Gear));
+                    });
+                });
+            panel
+                .spawn((
+                    Node {
+                        width: percent(100.0),
+                        height: px(7),
+                        margin: UiRect::vertical(px(3)),
+                        border_radius: BorderRadius::all(px(4)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.12)),
+                ))
+                .with_child((
+                    Node {
+                        width: percent(0.0),
+                        height: percent(100.0),
+                        border_radius: BorderRadius::all(px(4)),
+                        ..default()
+                    },
+                    BackgroundColor(RPM_BAR_COLOR),
+                    RpmBarFill,
+                ));
+            panel
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    column_gap: px(8),
+                    align_items: AlignItems::Center,
+                    ..default()
+                })
+                .with_children(|row| {
+                    row.spawn(label("RPM"));
+                    row.spawn((value("0", 14.0), HudField::Rpm));
+                });
+            panel.spawn((value("", 12.0), HudField::Status));
         });
 }
 

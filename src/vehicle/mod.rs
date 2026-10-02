@@ -393,8 +393,9 @@ pub(crate) fn spawn_vehicle_kind(
     let model_path = kind.model_path();
     // Use the same root as Bevy's AssetPlugin. A Store/MSIX launch can have an
     // unrelated working directory, so `Path::new("assets")` is not reliable.
+    // On Android the model is looked up inside the APK instead.
     let model_file = crate::asset_paths::asset_directory().join(model_path);
-    let model_available = model_file.is_file();
+    let model_available = crate::asset_paths::asset_exists(model_path);
 
     if model_available {
         commands

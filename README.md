@@ -93,6 +93,15 @@ configuration. These choices are saved in `settings.ron`.
 машины трафика жёстко ограничена 160 км/ч. Выбранная плотность сохраняется
 вместе с остальными настройками.
 
+## Android
+
+Отдельная сборка для телефонов находится в [`android/`](android/README.md):
+горизонтальный экран, сенсорные кнопки GAS / BRAKE / NITRO, руление кнопками
+◀ ▶ или наклоном телефона (выбирается в CONTROLS), кнопка паузы с выходом в
+главное меню. APK собирается командой `./android/build_apk.sh`; desktop-сборка
+от этого не меняется. Посмотреть телефонный интерфейс на компьютере:
+`cargo run --release --features mobile --example mobile_preview`.
+
 ## Controls
 
 | key | action |

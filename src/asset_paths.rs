@@ -6,6 +6,7 @@
 
 use std::path::{Path, PathBuf};
 
+#[cfg_attr(target_os = "android", allow(dead_code))]
 fn find_asset_directory(
     executable_directory: Option<&Path>,
     working_directory: Option<&Path>,
@@ -24,6 +25,14 @@ fn find_asset_directory(
     .find(|candidate| candidate.is_dir())
 }
 
+/// On Android the asset tree is packed inside the APK and read through the
+/// `AssetManager`; Bevy's Android asset reader ignores this root.
+#[cfg(target_os = "android")]
+pub fn asset_directory() -> PathBuf {
+    PathBuf::from("assets")
+}
+
+#[cfg(not(target_os = "android"))]
 pub fn asset_directory() -> PathBuf {
     let executable_directory = std::env::current_exe()
         .ok()
@@ -42,6 +51,25 @@ pub fn asset_directory() -> PathBuf {
              and in the source tree"
         )
     })
+}
+
+/// Whether `relative` (a path inside the asset tree, e.g.
+/// `models/bugatti/scene.gltf`) is present in the installed game.
+#[cfg(not(target_os = "android"))]
+pub fn asset_exists(relative: &str) -> bool {
+    asset_directory().join(relative).is_file()
+}
+
+/// Android variant: look the file up inside the APK's `assets/` folder.
+#[cfg(target_os = "android")]
+pub fn asset_exists(relative: &str) -> bool {
+    let Some(app) = bevy::android::ANDROID_APP.get() else {
+        return false;
+    };
+    let Ok(path) = std::ffi::CString::new(relative) else {
+        return false;
+    };
+    app.asset_manager().open(&path).is_some()
 }
 
 #[cfg(test)]

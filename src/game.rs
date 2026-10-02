@@ -101,7 +101,8 @@ impl Plugin for SimulationPlugin {
                     toggle_triple_power,
                     handle_pause,
                     cycle_lighting_quality,
-                    sync_cursor_with_game_state,
+                    // Phones have no pointer to hide or capture.
+                    sync_cursor_with_game_state.run_if(crate::ui::desktop_layout),
                 ),
             )
             .add_systems(Update, apply_lighting_quality.after(cycle_lighting_quality))

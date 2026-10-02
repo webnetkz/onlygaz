@@ -10,3 +10,10 @@ __pycache__/
 # trees or package binaries, in the source repository.
 /dist/*
 !/dist/OnlyGAZ_StoreAssets/
+
+# Android build (android/build_apk.sh): Cargo output, staging, APKs.
+/android/target
+/android/build
+# Release signing key and its password. Back these up privately: every update
+# of the installed app must be signed with the same key. Never commit them.
+/android/keystore

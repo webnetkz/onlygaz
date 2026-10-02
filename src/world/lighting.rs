@@ -45,6 +45,12 @@ use serde::{Deserialize, Serialize};
 /// [`LightingQuality::Performance`] tier, where there is no simulated sky.
 pub const SKY_COLOR: Color = Color::srgb(0.48, 0.66, 0.88);
 
+/// Set by the phone build. Vulkan guarantees only 1x and 4x multisampling on
+/// every GPU and many mobile GPUs reject 2x, so a 2x request (the Performance
+/// preset) renders without MSAA there; 4x and TAA remain selectable.
+pub static MSAA_2X_UNAVAILABLE: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
 /// Environment variable that selects the tier at start-up.
 pub const QUALITY_ENV: &str = "VEYRON_QUALITY";
 /// Environment variable that overrides the camera exposure, in EV100. Lower is
@@ -444,7 +450,12 @@ impl LightingSettings {
                 self.ambient_occlusion = GraphicsLevel::Off;
                 self.reflection_quality = GraphicsLevel::Off;
                 self.atmosphere_quality = GraphicsLevel::Off;
-                self.anti_aliasing = AntiAliasingQuality::Msaa2;
+                self.anti_aliasing =
+                    if MSAA_2X_UNAVAILABLE.load(std::sync::atomic::Ordering::Relaxed) {
+                        AntiAliasingQuality::Off
+                    } else {
+                        AntiAliasingQuality::Msaa2
+                    };
                 self.view_distance = ViewDistance::Medium;
                 self.contact_shadows = false;
                 self.bloom = false;
@@ -917,7 +928,13 @@ pub fn apply_to_camera(entity: &mut EntityCommands, settings: &LightingSettings)
             entity.insert(Msaa::Off);
         }
         AntiAliasingQuality::Msaa2 => {
-            entity.insert(Msaa::Sample2);
+            entity.insert(
+                if MSAA_2X_UNAVAILABLE.load(std::sync::atomic::Ordering::Relaxed) {
+                    Msaa::Off
+                } else {
+                    Msaa::Sample2
+                },
+            );
         }
         AntiAliasingQuality::Msaa4 => {
             entity.insert(Msaa::Sample4);

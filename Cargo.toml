@@ -20,6 +20,29 @@ fastrand = "2.5"
 wgpu-types = "29"
 w16_audio = { path = "vendor/w16_audio" }
 
+[features]
+default = []
+# Touch-screen phone build of the game (landscape): on-screen pedals,
+# steering buttons or tilt steering, compact menus and mobile graphics
+# defaults. Enabled by the separate Android package in `android/`; it can
+# also be enabled on a desktop to preview the phone interface
+# (`cargo run --release --features mobile --example mobile_preview`).
+mobile = []
+
+# Android-only platform glue (sensors, safe-area insets). Never part of the
+# Windows/macOS builds.
+[target.'cfg(target_os = "android")'.dependencies]
+ndk-sys = "0.6"
+jni = "0.21"
+
+[[example]]
+name = "mobile_preview"
+required-features = ["mobile"]
+
+[[example]]
+name = "mobile_screenshots"
+required-features = ["mobile"]
+
 [dev-dependencies]
 # Parse the custom fullscreen shader in tests so post-processing changes fail
 # fast without launching a window or producing a release build.

@@ -15,6 +15,9 @@ use super::menu::{GraphicsScroll, RebindState, SettingKind, SettingSlider};
 pub(crate) struct KeyboardMenuNavigation {
     focused: Option<Entity>,
     keyboard_pressed: Option<Entity>,
+    /// Arrow keys have been used. The phone layout only shows the focus ring
+    /// once a keyboard or gamepad is actually in use; fingers do not need it.
+    arrows_used: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -140,6 +143,7 @@ pub(crate) fn keyboard_menu_navigation(
     });
     let backwards = keys.just_pressed(KeyCode::ArrowUp);
     let forwards = keys.just_pressed(KeyCode::ArrowDown);
+    navigation.arrows_used |= backwards || forwards;
     if !valid_focus && !backwards && !forwards {
         navigation.focused = candidates.first().map(|candidate| candidate.entity);
     }
@@ -222,6 +226,7 @@ pub(crate) fn keyboard_menu_navigation(
 pub(crate) fn sync_menu_highlights(
     mut commands: Commands,
     navigation: Res<KeyboardMenuNavigation>,
+    layout: Option<Res<crate::ui::UiLayout>>,
     mut buttons: Query<
         (
             Entity,
@@ -232,11 +237,14 @@ pub(crate) fn sync_menu_highlights(
         With<Button>,
     >,
 ) {
+    let show_focus =
+        navigation.arrows_used || layout.as_deref() != Some(&crate::ui::UiLayout::Phone);
+    let focused = navigation.focused.filter(|_| show_focus);
     for (entity, interaction, visibility, outline) in &mut buttons {
         let visible = visibility.is_none_or(|visibility| visibility.get());
         let color = if !visible {
             Color::NONE
-        } else if navigation.focused == Some(entity) {
+        } else if focused == Some(entity) {
             Color::srgb(0.55, 0.90, 1.0)
         } else if *interaction == Interaction::Pressed {
             Color::srgba(0.45, 0.82, 1.0, 0.88)
@@ -245,7 +253,7 @@ pub(crate) fn sync_menu_highlights(
         } else {
             Color::NONE
         };
-        let width = if navigation.focused == Some(entity) {
+        let width = if focused == Some(entity) {
             px(2.0)
         } else {
             px(1.0)
@@ -404,6 +412,7 @@ mod tests {
         app.insert_resource(KeyboardMenuNavigation {
             focused: Some(focused),
             keyboard_pressed: None,
+            arrows_used: false,
         })
         .add_systems(Update, sync_menu_highlights);
         app.update();
@@ -414,6 +423,27 @@ mod tests {
         assert_ne!(focused_outline.color, Color::NONE);
         assert_ne!(hovered_outline.color, Color::NONE);
         assert_ne!(focused_outline.color, hovered_outline.color);
+    }
+
+    #[test]
+    fn phone_layout_shows_the_focus_ring_only_after_arrow_keys() {
+        for arrows_used in [false, true] {
+            let mut app = App::new();
+            let focused = app
+                .world_mut()
+                .spawn((Button, Interaction::None, InheritedVisibility::VISIBLE))
+                .id();
+            app.insert_resource(crate::ui::UiLayout::Phone)
+                .insert_resource(KeyboardMenuNavigation {
+                    focused: Some(focused),
+                    keyboard_pressed: None,
+                    arrows_used,
+                })
+                .add_systems(Update, sync_menu_highlights);
+            app.update();
+            let outline = app.world().get::<Outline>(focused).expect("outline");
+            assert_eq!(outline.color == Color::NONE, !arrows_used);
+        }
     }
 
     #[test]

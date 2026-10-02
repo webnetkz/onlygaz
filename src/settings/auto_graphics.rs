@@ -1,5 +1,10 @@
 //! One-time graphics preset selection from the machine's available resources.
+//!
+//! The phone build always starts from its own mobile defaults and only uses
+//! the hardware description for its log line.
+#![cfg_attr(feature = "mobile", allow(dead_code))]
 
+#[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
 use std::process::Command;
 
 use bevy::render::renderer::RenderAdapterInfo;

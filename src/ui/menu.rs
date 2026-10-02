@@ -1,6 +1,7 @@
 //! Pause menu and live, per-feature graphics settings.
 
 use bevy::ecs::hierarchy::ChildSpawnerCommands;
+use bevy::ecs::system::EntityCommands;
 use bevy::prelude::*;
 use bevy::text::FontSize;
 use bevy::ui::RelativeCursorPosition;
@@ -12,12 +13,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::audio::radio::{RadioPlaylist, RadioSkip};
 use crate::game::GameState;
+use crate::mobile::TouchControlSettings;
 use crate::vehicle::controller::{ControlAction, KeyBindings, KeySlot};
 use crate::world::lighting::{
     AntiAliasingQuality, ExposureAdjustment, GraphicsLevel, LightingQuality, LightingSettings,
     ViewDistance,
 };
 use crate::world::traffic::TrafficSettings;
+
+#[cfg(feature = "mobile")]
+mod phone;
+#[cfg(feature = "mobile")]
+pub(crate) use phone::{TiltCentreButton, TiltStatusText, sync_pause_only_actions};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Resource)]
 pub enum PauseMenuPage {
@@ -163,6 +170,9 @@ pub(crate) enum MenuAction {
     OpenAudio,
     Back,
     Quit,
+    /// Leave the current race for the main menu (phone pause menu).
+    #[cfg_attr(not(feature = "mobile"), allow(dead_code))]
+    MainMenu,
 }
 
 fn menu_is_visible(state: GameState) -> bool {
@@ -204,6 +214,12 @@ pub(crate) enum SettingKind {
     EffectsVolume,
     EngineVolume,
     MusicVolume,
+    /// Phone build: on-screen buttons or tilt steering.
+    #[cfg_attr(not(feature = "mobile"), allow(dead_code))]
+    SteeringMode,
+    /// Phone build: roll needed for full lock.
+    #[cfg_attr(not(feature = "mobile"), allow(dead_code))]
+    TiltSensitivity,
 }
 
 #[derive(Component)]
@@ -265,6 +281,11 @@ pub(crate) struct RebindPromptText;
 
 #[derive(Component)]
 pub(crate) struct GraphicsScroll;
+
+/// A scrollable menu area that follows a dragged finger (phone build).
+#[derive(Component, Default)]
+#[cfg_attr(not(feature = "mobile"), allow(dead_code))]
+pub(crate) struct TouchScroll;
 
 pub(crate) fn scroll_graphics(
     mut wheel: MessageReader<bevy::input::mouse::MouseWheel>,
@@ -427,6 +448,7 @@ fn action_tone(action: MenuAction) -> MaterialButtonTone {
         MenuAction::Resume => MaterialButtonTone::Primary,
         MenuAction::Quit => MaterialButtonTone::Danger,
         MenuAction::Back => MaterialButtonTone::Outline,
+        MenuAction::MainMenu => MaterialButtonTone::Outline,
         MenuAction::OpenGraphics | MenuAction::OpenControls | MenuAction::OpenAudio => {
             MaterialButtonTone::Tonal
         }
@@ -480,61 +502,71 @@ fn action_button(
     width: f32,
     font: &Handle<Font>,
 ) {
+    action_button_sized(parent, title, action, px(width), font);
+}
+
+fn action_button_sized<'a>(
+    parent: &'a mut ChildSpawnerCommands,
+    title: &str,
+    action: MenuAction,
+    width: Val,
+    font: &Handle<Font>,
+) -> EntityCommands<'a> {
     let tone = action_tone(action);
-    parent
-        .spawn((
-            Button,
-            action,
-            tone,
+    let mut button = parent.spawn((
+        Button,
+        action,
+        tone,
+        Node {
+            width,
+            height: px(54),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::SpaceBetween,
+            padding: UiRect::horizontal(px(20)),
+            border: UiRect::all(px(1)),
+            border_radius: BorderRadius::ZERO,
+            ..default()
+        },
+        BackgroundColor(tone_color(tone, Interaction::None)),
+        BorderColor::all(tone_border(tone, Interaction::None)),
+        control_shadow(),
+    ));
+    button.with_children(|button| {
+        let label_color = TEXT_MAIN;
+        button.spawn((
             Node {
-                width: px(width),
-                height: px(54),
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::SpaceBetween,
-                padding: UiRect::horizontal(px(20)),
-                border: UiRect::all(px(1)),
-                border_radius: BorderRadius::ZERO,
+                position_type: PositionType::Absolute,
+                left: px(0),
+                top: px(0),
+                width: px(4),
+                height: percent(100.0),
                 ..default()
             },
-            BackgroundColor(tone_color(tone, Interaction::None)),
-            BorderColor::all(tone_border(tone, Interaction::None)),
-            control_shadow(),
-        ))
-        .with_children(|button| {
-            let label_color = TEXT_MAIN;
-            button.spawn((
-                Node {
-                    position_type: PositionType::Absolute,
-                    left: px(0),
-                    top: px(0),
-                    width: px(4),
-                    height: percent(100.0),
-                    ..default()
-                },
-                BackgroundColor(if tone == MaterialButtonTone::Danger {
-                    Color::srgb(1.0, 0.37, 0.40)
-                } else {
-                    PRIMARY
-                }),
-            ));
-            let mut label = button.spawn((
-                Text::new(title),
-                menu_font(font, 15.0),
-                TextColor(label_color),
-            ));
-            if matches!(action, MenuAction::Resume) {
-                label.insert(MenuCopy::PrimaryAction);
-            }
-            button.spawn((
-                Text::new(if matches!(action, MenuAction::Back) {
-                    "‹"
-                } else {
-                    "›"
-                }),
-                menu_font(font, 25.0),
-                TextColor(label_color),
-            ));
-        });
+            BackgroundColor(if tone == MaterialButtonTone::Danger {
+                Color::srgb(1.0, 0.37, 0.40)
+            } else {
+                PRIMARY
+            }),
+        ));
+        let mut label = button.spawn((
+            Text::new(title),
+            menu_font(font, 15.0),
+            TextColor(label_color),
+        ));
+        if matches!(action, MenuAction::Resume) {
+            label.insert(MenuCopy::PrimaryAction);
+        }
+        button.spawn((
+            Text::new(if matches!(action, MenuAction::Back) {
+                "‹"
+            } else {
+                "›"
+            }),
+            menu_font(font, 25.0),
+            TextColor(label_color),
+        ));
+    });
+    button
 }
 
 fn radio_control_button(
@@ -932,7 +964,11 @@ fn control_row(
         });
 }
 
-pub(crate) fn spawn_menu(mut commands: Commands, asset_server: Option<Res<AssetServer>>) {
+pub(crate) fn spawn_menu(
+    mut commands: Commands,
+    asset_server: Option<Res<AssetServer>>,
+    layout: Option<Res<crate::ui::UiLayout>>,
+) {
     // The real game always has an AssetServer. Keeping this optional makes the
     // menu's small ECS unit tests renderable without booting the full asset
     // pipeline, while the running game still receives the bundled Ubuntu font.
@@ -948,6 +984,14 @@ pub(crate) fn spawn_menu(mut commands: Commands, asset_server: Option<Res<AssetS
         .as_ref()
         .map(|server| server.load("ui/onlygaz_logo.png"))
         .unwrap_or_default();
+
+    #[cfg(feature = "mobile")]
+    if layout.as_deref() == Some(&crate::ui::UiLayout::Phone) {
+        phone::spawn_phone_menu(&mut commands, &regular_font, &bold_font, &main_logo);
+        return;
+    }
+    #[cfg(not(feature = "mobile"))]
+    let _ = layout;
 
     commands
         .spawn((
@@ -1424,6 +1468,10 @@ pub(crate) fn handle_menu_buttons(
             MenuAction::Quit => {
                 exit.write(AppExit::Success);
             }
+            MenuAction::MainMenu => {
+                *page = PauseMenuPage::Main;
+                next_state.set(GameState::MainMenu);
+            }
         }
     }
 }
@@ -1449,6 +1497,7 @@ pub(crate) fn handle_setting_buttons(
     mut display: ResMut<DisplaySettings>,
     mut lighting: ResMut<LightingSettings>,
     mut traffic: ResMut<TrafficSettings>,
+    mut touch: Option<ResMut<TouchControlSettings>>,
     buttons: Query<(&Interaction, &SettingSelectButton), (Changed<Interaction>, With<Button>)>,
 ) {
     if !menu_is_visible(*state.get()) {
@@ -1470,11 +1519,20 @@ pub(crate) fn handle_setting_buttons(
             SettingKind::DisplayMode => display.mode = display.mode.next(),
             SettingKind::Vsync => display.vsync = !display.vsync,
             SettingKind::AntiAliasing => {
-                lighting.anti_aliasing = if previous {
-                    previous_anti_aliasing(lighting.anti_aliasing)
-                } else {
-                    lighting.anti_aliasing.next()
+                let step = |value: AntiAliasingQuality| {
+                    if previous {
+                        previous_anti_aliasing(value)
+                    } else {
+                        value.next()
+                    }
                 };
+                let mut value = step(lighting.anti_aliasing);
+                // The phone build (the only one with touch settings) skips
+                // 2x MSAA, which many mobile GPUs do not support.
+                if touch.is_some() && value == AntiAliasingQuality::Msaa2 {
+                    value = step(value);
+                }
+                lighting.anti_aliasing = value;
             }
             SettingKind::ViewDistance => {
                 lighting.view_distance = if previous {
@@ -1525,6 +1583,20 @@ pub(crate) fn handle_setting_buttons(
             }
             SettingKind::TimeOfDay => lighting.time_of_day = lighting.time_of_day.next(),
             SettingKind::EffectsVolume | SettingKind::EngineVolume | SettingKind::MusicVolume => {}
+            SettingKind::SteeringMode => {
+                if let Some(touch) = touch.as_mut() {
+                    touch.steering = touch.steering.next();
+                }
+            }
+            SettingKind::TiltSensitivity => {
+                if let Some(touch) = touch.as_mut() {
+                    touch.tilt_sensitivity = if previous {
+                        touch.tilt_sensitivity.previous()
+                    } else {
+                        touch.tilt_sensitivity.next()
+                    };
+                }
+            }
         }
     }
 }
@@ -1764,6 +1836,7 @@ fn setting_value(
     lighting: &LightingSettings,
     traffic: &TrafficSettings,
     audio: &crate::audio::AudioSettings,
+    touch: Option<&TouchControlSettings>,
 ) -> String {
     match kind {
         SettingKind::Resolution => display.resolution.label().to_string(),
@@ -1790,6 +1863,14 @@ fn setting_value(
         SettingKind::EffectsVolume => format_volume(audio.effects_volume),
         SettingKind::EngineVolume => format_volume(audio.engine_volume),
         SettingKind::MusicVolume => format_volume(audio.music_volume),
+        SettingKind::SteeringMode => touch
+            .map(|touch| touch.steering.label())
+            .unwrap_or("—")
+            .to_string(),
+        SettingKind::TiltSensitivity => touch
+            .map(|touch| touch.tilt_sensitivity.label())
+            .unwrap_or("—")
+            .to_string(),
     }
 }
 
@@ -1830,6 +1911,7 @@ pub(crate) fn sync_graphics_menu(
     lighting: Res<LightingSettings>,
     traffic: Res<TrafficSettings>,
     audio: Res<crate::audio::AudioSettings>,
+    touch: Option<Res<TouchControlSettings>>,
     mut quality_buttons: Query<
         (
             &GraphicsQualityButton,
@@ -1894,7 +1976,14 @@ pub(crate) fn sync_graphics_menu(
         });
     }
     for (kind, mut text) in &mut values {
-        let value = setting_value(kind.0, &display, &lighting, &traffic, &audio);
+        let value = setting_value(
+            kind.0,
+            &display,
+            &lighting,
+            &traffic,
+            &audio,
+            touch.as_deref(),
+        );
         if text.as_str() != value {
             **text = value;
         }
@@ -2358,6 +2447,7 @@ mod tests {
                 app.world().resource::<LightingSettings>(),
                 app.world().resource::<TrafficSettings>(),
                 &crate::audio::AudioSettings::default(),
+                None,
             ),
             "ON"
         );

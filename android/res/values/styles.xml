@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Black, title-less, full-screen window that may extend under camera
+         cut-outs; the game keeps its controls inside the safe area. -->
+    <style name="OnlyGazTheme" parent="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">false</item>
+    </style>
+    <color name="ic_launcher_background">#000000</color>
+</resources>

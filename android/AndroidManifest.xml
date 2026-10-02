@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  OnlyGAZ for Android. The game is the native library libonlygaz.so (Rust +
+  Bevy) started by NativeActivity; MainActivity only adds immersive full
+  screen, cut-out insets and the display rotation. The game runs in
+  landscape and follows the phone when it is turned over by 180 degrees.
+
+  versionCode must grow with every published build.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="kz.webnet.onlygaz"
+    android:versionCode="10001"
+    android:versionName="1.0.1"
+    android:installLocation="auto">
+
+    <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="35" />
+
+    <!-- Rendering uses Vulkan, with OpenGL ES 3 as the fallback. -->
+    <uses-feature android:glEsVersion="0x00030000" android:required="true" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="true" />
+    <uses-feature android:name="android.hardware.screen.landscape" android:required="true" />
+    <!-- Tilt steering is optional; the on-screen arrows always work. -->
+    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />
+
+    <application
+        android:label="OnlyGAZ"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:theme="@style/OnlyGazTheme"
+        android:hasCode="true"
+        android:isGame="true"
+        android:appCategory="game"
+        android:allowBackup="true"
+        android:extractNativeLibs="true"
+        android:resizeableActivity="false"
+        android:hardwareAccelerated="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:label="OnlyGAZ"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="sensorLandscape"
+            android:resizeableActivity="false"
+            android:alwaysRetainTaskState="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density|keyboard|keyboardHidden|navigation|uiMode|fontScale|layoutDirection|locale|mcc|mnc|touchscreen">
+
+            <!-- Native library loaded by NativeActivity: lib/arm64-v8a/libonlygaz.so -->
+            <meta-data android:name="android.app.lib_name" android:value="onlygaz" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

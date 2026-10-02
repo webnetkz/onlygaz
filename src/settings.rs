@@ -10,7 +10,9 @@ use serde::{Deserialize, Serialize};
 use crate::audio::{AudioSettings, engine::EngineAudioSettings};
 use crate::ui::menu::DisplaySettings;
 use crate::vehicle::controller::KeyBindings;
-use crate::world::lighting::{LightingQuality, LightingSettings};
+#[cfg(not(feature = "mobile"))]
+use crate::world::lighting::LightingQuality;
+use crate::world::lighting::LightingSettings;
 use crate::world::traffic::TrafficSettings;
 
 mod auto_graphics;
@@ -29,6 +31,9 @@ struct SavedSettings {
     controls: KeyBindings,
     engine_audio_enabled: bool,
     auto_graphics_configured: bool,
+    /// Phone build only: steering mode and tilt calibration.
+    #[cfg(feature = "mobile")]
+    touch: crate::mobile::TouchControlSettings,
 }
 
 impl Default for SavedSettings {
@@ -42,11 +47,14 @@ impl Default for SavedSettings {
             controls: KeyBindings::default(),
             engine_audio_enabled: true,
             auto_graphics_configured: false,
+            #[cfg(feature = "mobile")]
+            touch: crate::mobile::TouchControlSettings::default(),
         }
     }
 }
 
 impl SavedSettings {
+    #[cfg_attr(feature = "mobile", allow(clippy::too_many_arguments))]
     fn capture(
         display: &DisplaySettings,
         graphics: &LightingSettings,
@@ -55,6 +63,7 @@ impl SavedSettings {
         controls: &KeyBindings,
         engine_audio: &EngineAudioSettings,
         auto_graphics_configured: bool,
+        #[cfg(feature = "mobile")] touch: &crate::mobile::TouchControlSettings,
     ) -> Self {
         Self {
             version: SETTINGS_VERSION,
@@ -65,6 +74,8 @@ impl SavedSettings {
             controls: controls.clone(),
             engine_audio_enabled: engine_audio.enabled,
             auto_graphics_configured,
+            #[cfg(feature = "mobile")]
+            touch: touch.clone(),
         }
     }
 }
@@ -93,6 +104,8 @@ impl Plugin for SettingsPersistencePlugin {
             // existing installation. Preserve its hand-picked graphics instead
             // of treating the next update as the first launch.
             auto_graphics_configured = saved.auto_graphics_configured || saved.version < 3;
+            #[cfg(feature = "mobile")]
+            app.insert_resource(saved.touch);
             app.insert_resource(saved.display)
                 .insert_resource(saved.graphics)
                 .insert_resource(saved.traffic)
@@ -101,6 +114,8 @@ impl Plugin for SettingsPersistencePlugin {
                 .insert_resource(engine_audio);
             info!("settings loaded from {}", path.display());
         }
+        #[cfg(feature = "mobile")]
+        app.init_resource::<crate::mobile::TouchControlSettings>();
         app.insert_resource(SettingsFile {
             path,
             auto_graphics_configured,
@@ -114,24 +129,40 @@ fn auto_configure_graphics_on_first_launch(
     mut file: ResMut<SettingsFile>,
     adapter: Option<Res<RenderAdapterInfo>>,
     mut graphics: ResMut<LightingSettings>,
+    #[cfg(feature = "mobile")] mut traffic: ResMut<TrafficSettings>,
 ) {
     if file.auto_graphics_configured {
         return;
     }
 
-    let profile = auto_graphics::HardwareProfile::detect(adapter.as_deref());
-    let quality = if std::env::var_os(crate::world::lighting::QUALITY_ENV).is_some() {
-        LightingQuality::from_env()
-    } else {
-        auto_graphics::recommended_quality(&profile)
-    };
-    graphics.apply_preset(quality);
-    file.auto_graphics_configured = true;
-    info!(
-        "first-launch graphics auto-configuration: {} ({})",
-        quality.label(),
-        profile.description(),
-    );
+    // Phones share their power budget with the display and heat up quickly:
+    // start from the lightest preset regardless of how the GPU reports itself.
+    #[cfg(feature = "mobile")]
+    {
+        crate::mobile::apply_mobile_graphics_defaults(&mut graphics, &mut traffic);
+        file.auto_graphics_configured = true;
+        info!(
+            "first-launch graphics auto-configuration: mobile defaults ({})",
+            auto_graphics::HardwareProfile::detect(adapter.as_deref()).description(),
+        );
+    }
+
+    #[cfg(not(feature = "mobile"))]
+    {
+        let profile = auto_graphics::HardwareProfile::detect(adapter.as_deref());
+        let quality = if std::env::var_os(crate::world::lighting::QUALITY_ENV).is_some() {
+            LightingQuality::from_env()
+        } else {
+            auto_graphics::recommended_quality(&profile)
+        };
+        graphics.apply_preset(quality);
+        file.auto_graphics_configured = true;
+        info!(
+            "first-launch graphics auto-configuration: {} ({})",
+            quality.label(),
+            profile.description(),
+        );
+    }
 }
 
 fn settings_file_path() -> PathBuf {
@@ -154,7 +185,18 @@ fn default_settings_file_path() -> PathBuf {
     windows_settings_file_path(std::env::var_os("APPDATA"))
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+/// Android keeps per-app files in the private internal storage directory,
+/// which survives updates of the APK and is removed with the app.
+#[cfg(target_os = "android")]
+fn default_settings_file_path() -> PathBuf {
+    bevy::android::ANDROID_APP
+        .get()
+        .and_then(|app| app.internal_data_path())
+        .map(|directory| directory.join("settings.ron"))
+        .unwrap_or_else(|| PathBuf::from("settings.ron"))
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "android")))]
 fn default_settings_file_path() -> PathBuf {
     if let Some(config) = std::env::var_os("XDG_CONFIG_HOME") {
         return PathBuf::from(config).join("veyron_sim/settings.ron");
@@ -194,6 +236,7 @@ fn read_settings(path: &Path) -> Option<SavedSettings> {
     }
 }
 
+#[cfg_attr(feature = "mobile", allow(clippy::too_many_arguments))]
 fn save_changed_settings(
     file: Res<SettingsFile>,
     display: Res<DisplaySettings>,
@@ -202,13 +245,19 @@ fn save_changed_settings(
     audio: Res<AudioSettings>,
     controls: Res<KeyBindings>,
     engine_audio: Res<EngineAudioSettings>,
+    #[cfg(feature = "mobile")] touch: Res<crate::mobile::TouchControlSettings>,
 ) {
+    #[cfg(feature = "mobile")]
+    let touch_changed = touch.is_changed();
+    #[cfg(not(feature = "mobile"))]
+    let touch_changed = false;
     if !display.is_changed()
         && !graphics.is_changed()
         && !traffic.is_changed()
         && !audio.is_changed()
         && !controls.is_changed()
         && !engine_audio.is_changed()
+        && !touch_changed
     {
         return;
     }
@@ -221,6 +270,8 @@ fn save_changed_settings(
         &controls,
         &engine_audio,
         file.auto_graphics_configured,
+        #[cfg(feature = "mobile")]
+        &touch,
     );
     let pretty = ron::ser::PrettyConfig::new()
         .struct_names(true)

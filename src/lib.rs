@@ -8,6 +8,7 @@ pub mod asset_paths;
 pub mod audio;
 pub mod camera;
 pub mod game;
+pub mod mobile;
 pub mod settings;
 pub mod ui;
 pub mod vehicle;
