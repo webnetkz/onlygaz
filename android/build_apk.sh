@@ -35,19 +35,23 @@ MAIN="$HERE/app/src/main"
 TARGET=aarch64-linux-android
 ABI=arm64-v8a
 LIB_NAME=onlygaz
-PACKAGE=kz.webnet.onlygaz
+# Java package of MainActivity (Gradle's namespace). The installed package
+# name is onlygaz.applicationId from gradle.properties.
+NAMESPACE=kz.webnet.onlygaz
 
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
 # Shared with the Gradle build.
 gradle_property() { sed -n "s/^$1=//p" "$HERE/gradle.properties" | head -1 | tr -d '\r'; }
+APPLICATION_ID="$(gradle_property onlygaz.applicationId)"
 VERSION_CODE="$(gradle_property onlygaz.versionCode)"
 VERSION_NAME="$(gradle_property onlygaz.versionName)"
 API="$(gradle_property onlygaz.minSdk)"
 TARGET_SDK="$(gradle_property onlygaz.targetSdk)"
-[ -n "$VERSION_CODE" ] && [ -n "$VERSION_NAME" ] && [ -n "$API" ] && [ -n "$TARGET_SDK" ] ||
-    die "onlygaz.versionCode/versionName/minSdk/targetSdk missing in android/gradle.properties"
+[ -n "$APPLICATION_ID" ] && [ -n "$VERSION_CODE" ] && [ -n "$VERSION_NAME" ] && [ -n "$API" ] &&
+    [ -n "$TARGET_SDK" ] ||
+    die "onlygaz.applicationId/versionCode/versionName/minSdk/targetSdk missing in android/gradle.properties"
 
 SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
 
@@ -202,18 +206,21 @@ OUT="$BUILD/OnlyGAZ-${VERSION_NAME}.apk"
 rm -f "$UNSIGNED" "$ALIGNED" "$OUT"
 
 # The Gradle-style manifest has no package attribute and a ${appLabel}
-# placeholder; aapt inserts the version and SDK levels.
+# placeholder; aapt inserts the version and SDK levels. Like Gradle, the
+# manifest is read with the namespace (so ".MainActivity" stays
+# kz.webnet.onlygaz.MainActivity) and renamed to the application id.
 MANIFEST="$BUILD/AndroidManifest.xml"
-sed -e "s|<manifest |<manifest package=\"$PACKAGE\" |" -e 's|\${appLabel}|OnlyGAZ|g' \
+sed -e "s|<manifest |<manifest package=\"$NAMESPACE\" |" -e 's|\${appLabel}|OnlyGAZ|g' \
     "$MAIN/AndroidManifest.xml" >"$MANIFEST"
-grep -q "package=\"$PACKAGE\"" "$MANIFEST" || die "could not prepare AndroidManifest.xml"
+grep -q "package=\"$NAMESPACE\"" "$MANIFEST" || die "could not prepare AndroidManifest.xml"
 
-log "packaging resources and assets (versionCode $VERSION_CODE, targetSdk $TARGET_SDK)"
+log "packaging $APPLICATION_ID (versionCode $VERSION_CODE, targetSdk $TARGET_SDK)"
 "$AAPT" package -f \
     -M "$MANIFEST" \
     -S "$MAIN/res" \
     -A "$ASSETS" \
     -I "$RESOURCE_BASE" \
+    --rename-manifest-package "$APPLICATION_ID" \
     --min-sdk-version "$API" \
     --target-sdk-version "$TARGET_SDK" \
     --version-code "$VERSION_CODE" \

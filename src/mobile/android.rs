@@ -27,7 +27,7 @@ use super::layout::SafeArea;
 
 /// Release package name; the debug build adds `.debug` (see
 /// [`package_name`]).
-const PACKAGE_NAME: &std::ffi::CStr = c"kz.webnet.onlygaz";
+const PACKAGE_NAME: &std::ffi::CStr = c"com.appswebnetkz.onlygaz";
 /// Logcat tag of the game's own messages.
 const LOG_TAG: &std::ffi::CStr = c"OnlyGAZ";
 /// Sensor sampling period: 60 Hz is plenty for steering.
@@ -73,8 +73,8 @@ pub fn log_panics_to_logcat() {
     }));
 }
 
-/// The running app's package name: `kz.webnet.onlygaz`, or
-/// `kz.webnet.onlygaz.debug` for the Android Studio debug build. The sensor
+/// The running app's package name: `com.appswebnetkz.onlygaz`, or
+/// `com.appswebnetkz.onlygaz.debug` for the Android Studio debug build. The sensor
 /// service checks it against the app, so it is read from the process name
 /// (`/proc/self/cmdline`, which Android sets to the package name).
 fn package_name() -> std::ffi::CString {

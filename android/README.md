@@ -9,7 +9,7 @@ Desktop-версия (Windows / macOS, Microsoft Store) собирается и�
 
 | | |
 |---|---|
-| Пакет | `kz.webnet.onlygaz`, версия 1.0.3 (versionCode 10003); отладочная сборка — `kz.webnet.onlygaz.debug` |
+| Пакет | `com.appswebnetkz.onlygaz` (Google Play, аккаунт appswebnetkz), версия 1.0.4 (versionCode 10004); отладочная сборка — `com.appswebnetkz.onlygaz.debug`. Java-пакет `MainActivity` остаётся `kz.webnet.onlygaz` (namespace) |
 | Устройства | Android 8.0+ (minSdk 26), targetSdk 36 (Android 16), 64-битный ARM (`arm64-v8a`), Vulkan или OpenGL ES 3 |
 | Ориентация | горизонтальная; при перевороте телефона на 180° картинка поворачивается следом. Полноэкранный режим без системных панелей |
 | Сборка | Android Gradle Plugin 8.13.2, Gradle 8.14.3 (wrapper), NDK 27.0.12077973, Rust через rustup |
@@ -105,7 +105,7 @@ Python и другие инструменты не нужны: уменьшен�
 как в release, но без LTO). Сборка компилирует библиотеку только для
 архитектуры выбранного устройства.
 
-Устанавливается приложение **OnlyGAZ Debug** (`kz.webnet.onlygaz.debug`) — оно
+Устанавливается приложение **OnlyGAZ Debug** (`com.appswebnetkz.onlygaz.debug`) — оно
 ставится рядом с обычной версией и хранит свои настройки отдельно.
 
 **Логи** — окно **Logcat** (фильтр `package:mine`). Сообщения игры идут от
@@ -211,7 +211,7 @@ REUSE_ASSETS=1 ./android/build_apk.sh   # не готовить ассеты з�
 Либо с компьютера при включённой отладке по USB:
 
 ```sh
-adb install -r android/build/OnlyGAZ-1.0.3.apk
+adb install -r android/build/OnlyGAZ-1.0.4.apk
 ```
 
 Настройки хранятся во внутренней памяти приложения и сохраняются при

@@ -7,7 +7,7 @@
 //      (prepareDebugGameAssets / prepareReleaseGameAssets),
 //   3. packages both with MainActivity (a NativeActivity).
 //
-//   Run in Android Studio      -> "OnlyGAZ Debug" (kz.webnet.onlygaz.debug)
+//   Run in Android Studio      -> "OnlyGAZ Debug" (com.appswebnetkz.onlygaz.debug)
 //   ./gradlew bundleRelease    -> app/build/outputs/bundle/release/app-release.aab
 //   ./gradlew assembleRelease  -> app/build/outputs/apk/release/app-release.apk
 
@@ -33,6 +33,7 @@ fun setting(name: String): String? =
 fun requiredSetting(name: String): String =
     setting(name) ?: throw GradleException("$name is missing from android/gradle.properties")
 
+val gameApplicationId = requiredSetting("onlygaz.applicationId")
 val gameVersionCode = requiredSetting("onlygaz.versionCode").toInt()
 val gameVersionName = requiredSetting("onlygaz.versionName")
 val gameMinSdk = requiredSetting("onlygaz.minSdk").toInt()
@@ -87,12 +88,14 @@ val releaseKeystore: File? = keystoreProperties.getProperty("storeFile")
 // ------------------------------------------------------------------- android
 
 android {
+    // Java package of MainActivity. The package name on the phone and in
+    // Google Play is applicationId (onlygaz.applicationId).
     namespace = "kz.webnet.onlygaz"
     compileSdk = gameTargetSdk
     ndkVersion = gameNdkVersion
 
     defaultConfig {
-        applicationId = "kz.webnet.onlygaz"
+        applicationId = gameApplicationId
         minSdk = gameMinSdk
         targetSdk = gameTargetSdk
         versionCode = gameVersionCode

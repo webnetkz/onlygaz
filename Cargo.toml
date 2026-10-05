@@ -43,6 +43,10 @@ required-features = ["mobile"]
 name = "mobile_screenshots"
 required-features = ["mobile"]
 
+[[example]]
+name = "store_screenshots"
+required-features = ["mobile"]
+
 [dev-dependencies]
 # Parse the custom fullscreen shader in tests so post-processing changes fail
 # fast without launching a window or producing a release build.

@@ -653,8 +653,8 @@ fn spawn_controls_panel(
                     );
                     hint(
                         column,
-                        "Top right: pause / menu and CAM to switch the camera. The \
-                         phone's Back gesture pauses too.",
+                        "Top right: reset (the R key on PC), camera and pause / menu. \
+                         The phone's Back gesture pauses too.",
                         regular,
                     );
                 },
