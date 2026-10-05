@@ -27,6 +27,9 @@ import android.view.WindowManager;
  * file against API 23 (no Google SDK download needed), so APIs newer than 23
  * are reached through reflection.
  */
+// The pre-API-30 system UI calls are deliberate: they cover Android 8-10,
+// and the newer WindowInsetsController is reached through reflection.
+@SuppressWarnings("deprecation")
 public class MainActivity extends NativeActivity {
     /** Cut-out safe insets in physical pixels (read by the native game). */
     public static volatile int safeInsetLeft;

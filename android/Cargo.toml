@@ -41,13 +41,15 @@ strip = true
 
 # Android Studio's debug build (Run): release optimisation without LTO, so a
 # change to the game re-links in a fraction of the release time and still
-# runs at full speed on the phone.
+# runs at full speed on the phone. Stripped like release: with its symbols
+# the library is about 250 MB and every install takes much longer (panic
+# messages still name the source file and line in Logcat).
 [profile.android-dev]
 inherits = "release"
 lto = false
 incremental = true
 codegen-units = 64
-strip = "debuginfo"
+strip = true
 
 [profile.dev]
 opt-level = 1
