@@ -39,6 +39,11 @@ struct AutoRecoveryState {
     upside_down_for: HashMap<Entity, f32>,
 }
 
+/// Put the car back onto the nearest lane, facing down the road. Sent by the
+/// reset key and by the reset button of the phone build.
+#[derive(Message, Debug, Clone, Copy, Default)]
+pub struct ResetVehicle;
+
 /// Coarse application state.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States)]
 pub enum GameState {
@@ -87,6 +92,7 @@ impl Plugin for SimulationPlugin {
             .init_state::<GameState>()
             .init_resource::<KeyBindings>()
             .init_resource::<AutoRecoveryState>()
+            .add_message::<ResetVehicle>()
             .add_plugins(PhysicsPlugins::default())
             .add_plugins((WorldPlugin, VehiclePlugin, CameraPlugin, EngineAudioPlugin))
             .register_type::<LightingSettings>()
@@ -95,7 +101,7 @@ impl Plugin for SimulationPlugin {
                 (
                     cycle_camera,
                     hold_rear_view,
-                    reset_vehicle,
+                    (request_reset_from_keyboard, reset_vehicle).chain(),
                     auto_recover_vehicle,
                     toggle_abs,
                     toggle_triple_power,
@@ -225,11 +231,23 @@ fn auto_recover_vehicle(
     }
 }
 
-fn reset_vehicle(
-    mut commands: Commands,
+fn request_reset_from_keyboard(
     keys: Res<ButtonInput<KeyCode>>,
     bindings: Res<KeyBindings>,
     rebind: Option<Res<crate::ui::menu::RebindState>>,
+    mut resets: MessageWriter<ResetVehicle>,
+) {
+    if rebind.as_ref().is_some_and(|state| state.pending.is_some()) {
+        return;
+    }
+    if bindings.just_pressed(&keys, ControlAction::Reset) {
+        resets.write(ResetVehicle);
+    }
+}
+
+fn reset_vehicle(
+    mut commands: Commands,
+    mut requests: MessageReader<ResetVehicle>,
     spec: Res<RoadSpec>,
     mut performance: ResMut<PerformanceLog>,
     mut vehicles: Query<
@@ -237,10 +255,8 @@ fn reset_vehicle(
         With<crate::vehicle::physics::VehicleTag>,
     >,
 ) {
-    if rebind.as_ref().is_some_and(|state| state.pending.is_some()) {
-        return;
-    }
-    if !bindings.just_pressed(&keys, ControlAction::Reset) {
+    // Several requests in one frame (key and button together) reset once.
+    if requests.read().count() == 0 {
         return;
     }
     for (entity, transform, mut vehicle) in &mut vehicles {

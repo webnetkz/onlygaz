@@ -9,9 +9,9 @@
 //! input only: taps menu buttons found by their labels (they activate when
 //! the finger lifts), drags the graphics list, starts a race, holds GAS and
 //! the right arrow, switches to tilt steering (simulated 12° roll), taps the
-//! pause button, leaves the race and uses the Back button, saving a PNG at
-//! every step. Works with a software Vulkan driver (Mesa lavapipe under Xvfb),
-//! just slowly.
+//! reset and pause buttons, leaves the race and uses the Back button, saving
+//! a PNG at every step. Works with a software Vulkan driver (Mesa lavapipe
+//! under Xvfb, with a screen larger than the window), just slowly.
 
 use std::path::PathBuf;
 
@@ -127,6 +127,11 @@ const SCRIPT: &[Action] = &[
     A::Shot("07_driving_tilt_mode"),
     A::Lift(3),
     A::Lift(4),
+    // The reset button puts the car back on its lane (the R key).
+    A::TouchControl(6, TouchControlKind::Reset),
+    A::Wait(0.3),
+    A::Lift(6),
+    A::Wait(1.0),
     A::TouchControl(5, TouchControlKind::Menu),
     A::Wait(0.3),
     A::Lift(5),

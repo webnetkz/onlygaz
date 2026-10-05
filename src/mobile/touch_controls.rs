@@ -1,4 +1,5 @@
-//! On-screen driving controls: gas, brake, nitro, steering, pause and camera.
+//! On-screen driving controls: gas, brake, nitro, steering, pause, camera and
+//! the reset button (the R key of the desktop game).
 //!
 //! Every control is an icon (assets/ui/touch, drawn by
 //! tools/make_touch_icons.py) tinted with the control's colour: pedals for
@@ -14,7 +15,7 @@ use bevy::ui::UiSystems;
 use bevy::window::PrimaryWindow;
 
 use crate::camera::controller::GameCamera;
-use crate::game::GameState;
+use crate::game::{GameState, ResetVehicle};
 use crate::mobile::{SteeringMode, TouchControlSettings};
 use crate::vehicle::controller::{DriverInput, collect_keyboard_input, smooth_driver_input};
 
@@ -31,10 +32,12 @@ pub enum TouchControlKind {
     Nitro,
     Menu,
     Camera,
+    /// Put the car back onto the nearest lane, like the R key on a desktop.
+    Reset,
 }
 
 impl TouchControlKind {
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
         Self::SteerLeft,
         Self::SteerRight,
         Self::Gas,
@@ -42,6 +45,7 @@ impl TouchControlKind {
         Self::Nitro,
         Self::Menu,
         Self::Camera,
+        Self::Reset,
     ];
 
     const fn bit(self) -> u8 {
@@ -50,7 +54,7 @@ impl TouchControlKind {
 
     /// Pedals and steering act while held; the others fire once per tap.
     const fn is_held_control(self) -> bool {
-        !matches!(self, Self::Menu | Self::Camera)
+        !matches!(self, Self::Menu | Self::Camera | Self::Reset)
     }
 
     fn accent(self) -> Color {
@@ -58,6 +62,7 @@ impl TouchControlKind {
             Self::Gas => Color::srgb(0.36, 0.92, 0.56),
             Self::Brake => Color::srgb(1.0, 0.38, 0.38),
             Self::Nitro => Color::srgb(0.32, 0.78, 1.0),
+            Self::Reset => Color::srgb(1.0, 0.74, 0.30),
             Self::SteerLeft | Self::SteerRight | Self::Menu | Self::Camera => {
                 Color::srgb(0.86, 0.92, 1.0)
             }
@@ -183,6 +188,13 @@ fn placement(kind: TouchControlKind, show_arrows: bool, safe: SafeArea) -> Optio
             None,
             SMALL_SIZE,
         ),
+        TouchControlKind::Reset => at(
+            None,
+            Some(right + 2.0 * (SMALL_SIZE.x + GAP)),
+            Some(top),
+            None,
+            SMALL_SIZE,
+        ),
     }
 }
 
@@ -196,6 +208,7 @@ fn icon_for(kind: TouchControlKind) -> &'static str {
         TouchControlKind::Nitro => "ui/touch/nitro.png",
         TouchControlKind::Menu => "ui/touch/pause.png",
         TouchControlKind::Camera => "ui/touch/camera.png",
+        TouchControlKind::Reset => "ui/touch/reset.png",
     }
 }
 
@@ -217,13 +230,14 @@ fn icon_size(kind: TouchControlKind, button: Vec2) -> Vec2 {
         TouchControlKind::Nitro => Vec2::splat((side * 0.64).round()),
         TouchControlKind::Menu => Vec2::splat((side * 0.47).round()),
         TouchControlKind::Camera => Vec2::splat((side * 0.57).round()),
+        TouchControlKind::Reset => Vec2::splat((side * 0.55).round()),
     }
 }
 
 fn corner_radius(kind: TouchControlKind) -> f32 {
     match kind {
         TouchControlKind::SteerLeft | TouchControlKind::SteerRight => STEER_SIZE.x * 0.5,
-        TouchControlKind::Menu | TouchControlKind::Camera => 14.0,
+        TouchControlKind::Menu | TouchControlKind::Camera | TouchControlKind::Reset => 14.0,
         _ => 18.0,
     }
 }
@@ -405,9 +419,13 @@ fn handle_touch_taps(
     controls: Res<TouchControlState>,
     mut next: ResMut<NextState<GameState>>,
     mut cameras: Query<&mut GameCamera>,
+    mut resets: MessageWriter<ResetVehicle>,
 ) {
     if controls.tapped(TouchControlKind::Menu) {
         next.set(GameState::Paused);
+    }
+    if controls.tapped(TouchControlKind::Reset) {
+        resets.write(ResetVehicle);
     }
     if controls.tapped(TouchControlKind::Camera) {
         for mut camera in &mut cameras {
@@ -605,6 +623,39 @@ mod tests {
             icon_tint(TouchControlKind::Brake, false),
             TouchControlKind::Brake.accent()
         );
+    }
+
+    #[test]
+    fn the_reset_button_resets_the_car_like_the_r_key() {
+        let mut app = App::new();
+        app.add_plugins(bevy::state::app::StatesPlugin)
+            .init_state::<GameState>()
+            .add_message::<ResetVehicle>()
+            .insert_resource(TouchControlState::with(&[], &[TouchControlKind::Reset]))
+            .add_systems(Update, handle_touch_taps);
+        app.update();
+        let resets = app
+            .world()
+            .resource::<bevy::ecs::message::Messages<ResetVehicle>>();
+        assert_eq!(resets.len(), 1);
+        // A tap control: holding it does not keep resetting the car.
+        assert!(!TouchControlKind::Reset.is_held_control());
+    }
+
+    #[test]
+    fn the_top_row_holds_reset_camera_and_pause() {
+        let safe = SafeArea::default();
+        let menu = placement(TouchControlKind::Menu, true, safe).unwrap();
+        let camera = placement(TouchControlKind::Camera, true, safe).unwrap();
+        let reset = placement(TouchControlKind::Reset, true, safe).unwrap();
+        assert_eq!(reset.top, menu.top);
+        assert!(camera.right.unwrap() >= menu.right.unwrap() + menu.size.x + GAP);
+        assert!(reset.right.unwrap() >= camera.right.unwrap() + camera.size.x + GAP);
+        // Clear of the compact HUD at the top-left of the narrowest canvas.
+        let reset_left = super::super::layout::DESIGN_WIDTH - reset.right.unwrap() - reset.size.x;
+        assert!(reset_left > 228.0 + EDGE);
+        // Also present in tilt mode.
+        assert!(placement(TouchControlKind::Reset, false, safe).is_some());
     }
 
     #[test]

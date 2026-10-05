@@ -11,6 +11,7 @@ Usage: python3 tools/make_touch_icons.py        (requires Pillow)
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -162,12 +163,39 @@ def camera() -> None:
     c.save("camera.png")
 
 
+def reset() -> None:
+    # Counter-clockwise circular arrow: put the car back on the road (R key).
+    c = Canvas(128, 128)
+    cx, cy, radius, width = 0.50, 0.53, 0.30, 0.12
+    tail, head = math.radians(130), math.radians(410)
+    outer, inner = [], []
+    for i in range(161):
+        angle = tail + (head - tail) * i / 160
+        outer.append((cx + (radius + width / 2) * math.cos(angle), cy - (radius + width / 2) * math.sin(angle)))
+        inner.append((cx + (radius - width / 2) * math.cos(angle), cy - (radius - width / 2) * math.sin(angle)))
+    c.draw.polygon([c._xy(x, y) for x, y in outer + inner[::-1]], fill=255)
+    # Rounded tail.
+    c.circle(cx + radius * math.cos(tail), cy - radius * math.sin(tail), width / 2)
+    # Arrowhead along the direction of travel (image coordinates, y down).
+    hx, hy = cx + radius * math.cos(head), cy - radius * math.sin(head)
+    tx, ty = -math.sin(head), -math.cos(head)
+    nx, ny = math.cos(head), -math.sin(head)
+    half = width * 1.15
+    tip = (hx + tx * width * 2.0, hy + ty * width * 2.0)
+    c.draw.polygon(
+        [c._xy(*point) for point in ((hx + nx * half, hy + ny * half), tip, (hx - nx * half, hy - ny * half))],
+        fill=255,
+    )
+    c.save("reset.png")
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     gas()
     brake()
     nitro()
     camera()
+    reset()
 
 
 if __name__ == "__main__":
