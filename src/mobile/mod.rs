@@ -14,6 +14,8 @@ pub mod settings;
 pub use settings::{SteeringMode, TiltSensitivity, TouchControlSettings};
 
 #[cfg(feature = "mobile")]
+mod fps_log;
+#[cfg(feature = "mobile")]
 mod gestures;
 #[cfg(feature = "mobile")]
 mod layout;
@@ -50,7 +52,7 @@ mod app {
     use crate::world::lighting::{AntiAliasingQuality, LightingQuality, LightingSettings};
     use crate::world::traffic::{TrafficDensity, TrafficSettings};
 
-    use super::{gestures, layout, lifecycle, tilt, touch_controls};
+    use super::{fps_log, gestures, layout, lifecycle, tilt, touch_controls};
 
     /// Window used when the phone interface is previewed on a desktop
     /// (`cargo run --release --features mobile --example mobile_preview`): a
@@ -136,7 +138,9 @@ mod app {
                     lifecycle::LifecyclePlugin,
                     crate::world::texture_mips::TextureMipsPlugin,
                 ))
-                .add_systems(PreUpdate, avoid_2x_msaa);
+                .add_systems(PreUpdate, avoid_2x_msaa)
+                // Frame rate in Logcat every few seconds of a race.
+                .add_systems(Last, fps_log::log_frame_rate);
         }
     }
 
