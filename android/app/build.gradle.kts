@@ -3,7 +3,8 @@
 // Every build
 //   1. compiles the Rust game (android/Cargo.toml) into lib/<abi>/libonlygaz.so
 //      with cargo and the NDK's clang (task cargoBuildDebug / cargoBuildRelease),
-//   2. copies the repository's assets/ folder with phone-sized textures
+//   2. copies the repository's assets/ folder with phone-sized textures and
+//      the simplified models of android/asset-overrides
 //      (prepareDebugGameAssets / prepareReleaseGameAssets),
 //   3. packages both with MainActivity (a NativeActivity).
 //
@@ -170,8 +171,10 @@ fun prepareAssetsTask(buildType: String) =
         "prepare" + buildType.replaceFirstChar { it.uppercaseChar() } + "GameAssets"
     ) {
         group = "onlygaz"
-        description = "Copies assets/ with phone-sized textures for the $buildType build."
+        description = "Copies assets/ with phone-sized textures and models for the $buildType build."
         sourceDirectory.set(repositoryDirectory.resolve("assets"))
+        // Simplified 3D models of the phone build (tools/make_mobile_models.py).
+        overrideDirectory.set(repositoryDirectory.resolve("android/asset-overrides"))
         outputDirectory.set(layout.buildDirectory.dir("generated/onlygaz/assets/$buildType"))
     }
 

@@ -1,10 +1,11 @@
 //! Lighting.
 //!
-//! Three quality tiers, chosen at start-up with the `VEYRON_QUALITY`
+//! Four quality tiers, chosen at start-up with the `VEYRON_QUALITY`
 //! environment variable and cycled at run time with `F5`:
 //!
 //! | tier | what it is |
 //! |---|---|
+//! | `lite` | for budget phones: reduced render resolution, no shadow maps (soft blob shadows under the cars instead), no HDR or post-processing passes, simplified materials and a short view distance. |
 //! | `performance` | one directional sun, authored skybox, flat ambient, distance fog, 2x MSAA and two shadow cascades. This is the default. |
 //! | `balanced` | authored skybox, soft (PCSS) shadows, SSAO, contact shadows, bloom, ACES tonemapping and TAA. |
 //! | `cinematic` | as balanced, plus screen space reflections through the deferred path, ultra SSAO, a bigger shadow map and subtle motion blur. |
@@ -51,6 +52,15 @@ pub const SKY_COLOR: Color = Color::srgb(0.48, 0.66, 0.88);
 pub static MSAA_2X_UNAVAILABLE: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
+/// Set by the phone build: the presets render the 3D scene below the screen's
+/// native resolution (see [`RenderResolution`]). The interface always stays
+/// at full resolution.
+pub static PHONE_PRESETS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+fn phone_presets() -> bool {
+    PHONE_PRESETS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 /// Environment variable that selects the tier at start-up.
 pub const QUALITY_ENV: &str = "VEYRON_QUALITY";
 /// Environment variable that overrides the camera exposure, in EV100. Lower is
@@ -60,6 +70,9 @@ pub const EXPOSURE_ENV: &str = "VEYRON_EXPOSURE";
 /// How much of the lighting stack to run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Reflect, Serialize, Deserialize)]
 pub enum LightingQuality {
+    /// Budget phones: reduced resolution, no shadow maps, no HDR passes,
+    /// simplified materials.
+    Lite,
     /// Directional sun, flat ambient, distance fog. No cinematic lighting passes.
     #[default]
     Performance,
@@ -296,8 +309,70 @@ impl ExposureAdjustment {
     }
 }
 
+/// Resolution the 3D scene is rendered at. Below [`Self::Native`] the scene is
+/// drawn into a smaller image that is stretched over the screen, while the
+/// interface is still drawn at the screen's own resolution. The value is the
+/// image height; its width follows the screen's aspect ratio. A screen that is
+/// already that small or smaller renders natively.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Reflect, Serialize, Deserialize,
+)]
+pub enum RenderResolution {
+    P480,
+    P540,
+    P720,
+    #[default]
+    Native,
+}
+
+impl RenderResolution {
+    pub const ALL: [Self; 4] = [Self::P480, Self::P540, Self::P720, Self::Native];
+
+    pub fn next(self) -> Self {
+        Self::ALL[(self as usize + 1) % Self::ALL.len()]
+    }
+
+    pub fn previous(self) -> Self {
+        Self::ALL[(self as usize + Self::ALL.len() - 1) % Self::ALL.len()]
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::P480 => "480P",
+            Self::P540 => "540P",
+            Self::P720 => "720P",
+            Self::Native => "NATIVE",
+        }
+    }
+
+    /// Height of the 3D image [physical pixels], `None` for native.
+    pub fn height(self) -> Option<u32> {
+        match self {
+            Self::P480 => Some(480),
+            Self::P540 => Some(540),
+            Self::P720 => Some(720),
+            Self::Native => None,
+        }
+    }
+
+    /// Size of the 3D image for a window of `window` physical pixels, or
+    /// `None` when the scene should be drawn straight into the window.
+    pub fn scaled_size(self, window: UVec2) -> Option<UVec2> {
+        let height = self.height()?;
+        if window.x == 0 || window.y == 0 || window.y <= height {
+            return None;
+        }
+        let scale = height as f32 / window.y as f32;
+        Some(UVec2::new(
+            ((window.x as f32 * scale).round() as u32).max(1),
+            height,
+        ))
+    }
+}
+
 impl LightingQuality {
-    pub const ALL: [LightingQuality; 3] = [
+    pub const ALL: [LightingQuality; 4] = [
+        LightingQuality::Lite,
         LightingQuality::Performance,
         LightingQuality::Balanced,
         LightingQuality::Cinematic,
@@ -305,6 +380,7 @@ impl LightingQuality {
 
     pub fn label(self) -> &'static str {
         match self {
+            LightingQuality::Lite => "LITE",
             LightingQuality::Performance => "PERFORMANCE",
             LightingQuality::Balanced => "BALANCED",
             LightingQuality::Cinematic => "CINEMATIC",
@@ -313,9 +389,10 @@ impl LightingQuality {
 
     pub fn next(self) -> Self {
         match self {
+            LightingQuality::Lite => LightingQuality::Performance,
             LightingQuality::Performance => LightingQuality::Balanced,
             LightingQuality::Balanced => LightingQuality::Cinematic,
-            LightingQuality::Cinematic => LightingQuality::Performance,
+            LightingQuality::Cinematic => LightingQuality::Lite,
         }
     }
 
@@ -323,6 +400,7 @@ impl LightingQuality {
     pub fn from_env() -> Self {
         match std::env::var(QUALITY_ENV) {
             Ok(value) => match value.trim().to_ascii_lowercase().as_str() {
+                "lite" | "minimum" | "phone" => LightingQuality::Lite,
                 "performance" | "low" | "fast" => LightingQuality::Performance,
                 "balanced" | "medium" | "high" => LightingQuality::Balanced,
                 "cinematic" | "ultra" | "lumen" => LightingQuality::Cinematic,
@@ -362,6 +440,11 @@ pub struct LightingSettings {
     pub tire_marks: bool,
     pub tire_smoke: bool,
     pub sharpening: bool,
+    /// Resolution of the 3D scene; the interface is always native.
+    pub render_resolution: RenderResolution,
+    /// Normal and occlusion maps, clear coat and see-through (transmissive)
+    /// glass. Off swaps them for their cheap approximations.
+    pub detailed_materials: bool,
     /// Height of the sun above the horizon [rad].
     pub sun_elevation: f32,
     /// Compass direction of the sun, measured from the road's +Z axis [rad].
@@ -400,6 +483,8 @@ impl Default for LightingSettings {
             tire_marks: true,
             tire_smoke: true,
             sharpening: true,
+            render_resolution: RenderResolution::Native,
+            detailed_materials: true,
             sun_elevation: 42.0_f32.to_radians(),
             sun_azimuth: 145.0_f32.to_radians(),
             sun_angular_size: 1.2,
@@ -434,17 +519,35 @@ impl LightingSettings {
     /// afterwards through the graphics menu.
     pub fn apply_preset(&mut self, quality: LightingQuality) {
         self.quality = quality;
-        self.speed_effect = if quality == LightingQuality::Performance {
+        let fast = matches!(
+            quality,
+            LightingQuality::Lite | LightingQuality::Performance
+        );
+        self.speed_effect = if fast {
             GraphicsLevel::Off
         } else {
             GraphicsLevel::Ultra
         };
         self.exposure_adjustment = ExposureAdjustment::Normal;
-        self.collision_effect = quality != LightingQuality::Performance;
-        self.rearview_mirrors = quality != LightingQuality::Performance;
-        self.tire_marks = quality != LightingQuality::Performance;
-        self.tire_smoke = quality != LightingQuality::Performance;
+        self.collision_effect = !fast;
+        self.rearview_mirrors = !fast;
+        self.tire_marks = !fast;
+        self.tire_smoke = !fast;
+        self.detailed_materials = quality != LightingQuality::Lite;
+        self.render_resolution = Self::preset_resolution(quality, phone_presets());
         match quality {
+            LightingQuality::Lite => {
+                self.shadow_quality = GraphicsLevel::Off;
+                self.ambient_occlusion = GraphicsLevel::Off;
+                self.reflection_quality = GraphicsLevel::Off;
+                self.atmosphere_quality = GraphicsLevel::Off;
+                self.anti_aliasing = AntiAliasingQuality::Off;
+                self.view_distance = ViewDistance::Near;
+                self.contact_shadows = false;
+                self.bloom = false;
+                self.motion_blur = false;
+                self.sharpening = false;
+            }
             LightingQuality::Performance => {
                 self.shadow_quality = GraphicsLevel::Low;
                 self.ambient_occlusion = GraphicsLevel::Off;
@@ -511,6 +614,47 @@ impl LightingSettings {
             && self.tire_marks == preset.tire_marks
             && self.tire_smoke == preset.tire_smoke
             && self.sharpening == preset.sharpening
+            && self.render_resolution == preset.render_resolution
+            && self.detailed_materials == preset.detailed_materials
+    }
+
+    /// Render resolution a preset starts from. The desktop presets keep the
+    /// window's resolution, except Lite; the phone presets trade some
+    /// sharpness of the 3D image for frame rate.
+    pub fn preset_resolution(quality: LightingQuality, phone: bool) -> RenderResolution {
+        match (quality, phone) {
+            (LightingQuality::Lite, true) => RenderResolution::P540,
+            (LightingQuality::Lite, false) => RenderResolution::P720,
+            (LightingQuality::Performance | LightingQuality::Balanced, true) => {
+                RenderResolution::P720
+            }
+            _ => RenderResolution::Native,
+        }
+    }
+
+    /// High dynamic range rendering is only needed for bloom; everything else
+    /// tone maps directly in the material shaders, which saves a full-screen
+    /// pass and halves the colour buffer's memory traffic.
+    pub fn uses_hdr(&self) -> bool {
+        self.bloom || self.quality != LightingQuality::Lite
+    }
+
+    /// The full-screen speed and collision effect pass is only attached to the
+    /// camera while one of the two effects is enabled.
+    pub fn uses_screen_effect_pass(&self) -> bool {
+        self.speed_effect != GraphicsLevel::Off || self.collision_effect
+    }
+
+    /// Soft dark patches under the cars stand in for the shadow maps when
+    /// shadows are off.
+    pub fn uses_blob_shadows(&self) -> bool {
+        self.shadow_quality == GraphicsLevel::Off
+    }
+
+    /// Low beams of the traffic cars: only at night, and not on Lite, where
+    /// the lit lamp lenses alone show the cars.
+    pub fn traffic_beams_enabled(&self) -> bool {
+        self.time_of_day == TimeOfDay::Night && self.quality != LightingQuality::Lite
     }
 
     pub fn uses_atmosphere(&self) -> bool {
@@ -913,10 +1057,18 @@ pub fn atmospheric_haze_for(
 /// head-less tests build it - so tier switching is a separate function that is
 /// only ever called at run time, where a render world certainly exists.
 pub fn apply_to_camera(entity: &mut EntityCommands, settings: &LightingSettings) {
-    // Keep the render target format stable while live presets change. Cached
-    // post-processing pipelines must never render into an SDR attachment.
-    entity.insert(Hdr);
+    // Without HDR the tone mapping runs inside the material shaders and the
+    // separate tone mapping pass disappears. Every post-processing pipeline
+    // used here specialises on the view's target format, so switching at run
+    // time is safe.
+    if settings.uses_hdr() {
+        entity.insert(Hdr);
+    }
     entity.insert(settings.tonemapping());
+    if settings.uses_screen_effect_pass() {
+        // `insert_if_new`: keep the live effect state across preset changes.
+        entity.insert_if_new(crate::camera::speed_effect::SpeedTunnelEffect::default());
+    }
     entity.insert(if settings.shadow_quality >= GraphicsLevel::High {
         ShadowFilteringMethod::Temporal
     } else {
@@ -944,12 +1096,9 @@ pub fn apply_to_camera(entity: &mut EntityCommands, settings: &LightingSettings)
         }
     }
 
-    entity.insert((
-        Hdr,
-        Exposure {
-            ev100: settings.camera_ev100(),
-        },
-    ));
+    entity.insert(Exposure {
+        ev100: settings.camera_ev100(),
+    });
 
     if settings.uses_atmosphere() {
         entity.insert((
@@ -1062,6 +1211,12 @@ pub fn apply_to_camera(entity: &mut EntityCommands, settings: &LightingSettings)
 /// Unlike [`apply_to_camera`] this removes the components the new tier does not
 /// want, so it must only be used at run time.
 pub fn switch_camera_quality(entity: &mut EntityCommands, settings: &LightingSettings) {
+    if !settings.uses_hdr() {
+        entity.remove::<Hdr>();
+    }
+    if !settings.uses_screen_effect_pass() {
+        entity.remove::<crate::camera::speed_effect::SpeedTunnelEffect>();
+    }
     entity.remove::<(
         Exposure,
         Bloom,
@@ -1089,10 +1244,15 @@ mod tests {
     #[test]
     fn quality_tiers_cycle() {
         let mut quality = LightingQuality::Performance;
-        for _ in 0..3 {
+        for _ in 0..LightingQuality::ALL.len() {
             quality = quality.next();
         }
         assert_eq!(quality, LightingQuality::Performance);
+        let mut order = vec![LightingQuality::Lite];
+        while order.len() < LightingQuality::ALL.len() {
+            order.push(order.last().unwrap().next());
+        }
+        assert_eq!(order, LightingQuality::ALL);
         for tier in LightingQuality::ALL {
             assert!(!tier.label().is_empty());
         }

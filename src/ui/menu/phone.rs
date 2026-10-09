@@ -398,7 +398,7 @@ fn spawn_graphics_panel(
                     })
                     .with_children(|texts| {
                         texts.spawn((
-                            Text::new("VISUAL EXPERIENCE  •  DRAG TO SCROLL"),
+                            Text::new("DRAG TO SCROLL"),
                             menu_font(bold, 12.0),
                             TextColor(PRIMARY),
                         ));
@@ -420,7 +420,7 @@ fn spawn_graphics_panel(
                                     Button,
                                     GraphicsQualityButton(quality),
                                     Node {
-                                        width: px(146),
+                                        width: px(112),
                                         height: px(46),
                                         flex_shrink: 0.0,
                                         align_items: AlignItems::Center,
@@ -463,6 +463,12 @@ fn spawn_graphics_panel(
                         48.5,
                         |column| {
                             column_header(column, "WORLD", bold);
+                            setting_row(
+                                column,
+                                "3D resolution",
+                                SettingKind::RenderResolution,
+                                regular,
+                            );
                             setting_row(
                                 column,
                                 "Anti-aliasing",
@@ -523,6 +529,12 @@ fn spawn_graphics_panel(
                                 regular,
                             );
                             setting_row(column, "Sharpening", SettingKind::Sharpening, regular);
+                            setting_row(
+                                column,
+                                "Detailed materials",
+                                SettingKind::DetailedMaterials,
+                                regular,
+                            );
                         },
                     );
                 });

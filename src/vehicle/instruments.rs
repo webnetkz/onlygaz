@@ -179,7 +179,10 @@ fn cockpit_fill_target(
     vehicle: Entity,
 ) -> f32 {
     let visible = kind == VehicleKind::Veyron
-        && settings.quality != LightingQuality::Performance
+        && matches!(
+            settings.quality,
+            LightingQuality::Balanced | LightingQuality::Cinematic
+        )
         && camera.is_some_and(|camera| {
             camera.target == vehicle && camera.mode.is_interior() && !camera.rear_view
         });

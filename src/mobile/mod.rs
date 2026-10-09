@@ -103,14 +103,16 @@ mod app {
         app
     }
 
-    /// First-launch settings for phones: the Performance preset (without
+    /// First-launch settings for phones: the preset chosen for the phone's
+    /// hardware (Lite or Performance, see `settings::auto_graphics`; without
     /// MSAA, see [`crate::world::lighting::MSAA_2X_UNAVAILABLE`]) and light
     /// traffic. Every value remains adjustable in the graphics menu.
     pub fn apply_mobile_graphics_defaults(
         graphics: &mut LightingSettings,
         traffic: &mut TrafficSettings,
+        quality: LightingQuality,
     ) {
-        graphics.apply_preset(LightingQuality::Performance);
+        graphics.apply_preset(quality);
         traffic.density = TrafficDensity::Low;
     }
 
@@ -121,6 +123,9 @@ mod app {
         fn build(&self, app: &mut App) {
             crate::world::lighting::MSAA_2X_UNAVAILABLE
                 .store(true, std::sync::atomic::Ordering::Relaxed);
+            // Must happen before the settings are read: presets then start
+            // from phone render resolutions.
+            crate::world::lighting::PHONE_PRESETS.store(true, std::sync::atomic::Ordering::Relaxed);
             app.insert_resource(UiLayout::Phone)
                 .init_resource::<crate::mobile::TouchControlSettings>()
                 .add_plugins((
@@ -129,6 +134,7 @@ mod app {
                     touch_controls::TouchControlsPlugin,
                     tilt::TiltPlugin,
                     lifecycle::LifecyclePlugin,
+                    crate::world::texture_mips::TextureMipsPlugin,
                 ))
                 .add_systems(PreUpdate, avoid_2x_msaa);
         }

@@ -155,11 +155,25 @@ pub fn spawn_vehicle(commands: &mut Commands, config: VehicleConfig, pose: Trans
     let mass = config.mass;
     let inertia = config.inertia;
     let center_of_mass = config.center_of_mass;
+    // Footprint of the body boxes, for the blob shadow of the Lite preset.
+    let footprint = config
+        .collider_boxes
+        .iter()
+        .map(|(center, half_extents)| {
+            Vec2::new(
+                center.x.abs() + half_extents.x,
+                center.z.abs() + half_extents.z,
+            )
+        })
+        .fold(Vec2::splat(0.5), Vec2::max);
 
     commands
         .spawn((
             Name::new("Vehicle"),
             VehicleTag,
+            crate::world::blob_shadows::BlobShadowCaster {
+                half_extents: footprint,
+            },
             Vehicle::new(config, pose),
             super::controller::DriverInput::default(),
             pose,

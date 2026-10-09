@@ -1,11 +1,16 @@
 //! Static world: road, guard rails, terrain, scenery and lighting.
 
 pub mod barriers;
+pub mod blob_shadows;
+pub mod distance_culling;
 pub mod forest;
+pub mod light_culling;
 pub mod lighting;
+pub mod material_detail;
 pub mod mesh_builder;
 pub mod road;
 pub mod street_lights;
+pub mod texture_mips;
 pub mod traffic;
 
 use avian3d::prelude::*;
@@ -39,26 +44,32 @@ pub struct RoadLoopSystems;
 
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(traffic::TrafficPlugin)
-            .register_type::<RoadSpec>()
-            .init_resource::<RoadSpec>()
-            .add_systems(Startup, (lighting::load_skybox_assets, setup_world))
-            .add_systems(
-                Update,
-                wrap_player_on_infinite_road
-                    .in_set(RoadLoopSystems)
-                    .run_if(in_state(GameState::Driving)),
-            )
-            .add_systems(
-                Update,
-                (
-                    street_lights::sync_street_lights,
-                    street_lights::configure_new_street_light_meshes,
-                    lighting::prepare_skyboxes,
-                    forest::stream_cinematic_forest.after(RoadLoopSystems),
-                    forest::configure_new_forest_meshes,
-                ),
-            );
+        app.add_plugins((
+            traffic::TrafficPlugin,
+            distance_culling::DistanceCullingPlugin,
+            light_culling::LightCullingPlugin,
+            material_detail::MaterialDetailPlugin,
+            blob_shadows::BlobShadowPlugin,
+        ))
+        .register_type::<RoadSpec>()
+        .init_resource::<RoadSpec>()
+        .add_systems(Startup, (lighting::load_skybox_assets, setup_world))
+        .add_systems(
+            Update,
+            wrap_player_on_infinite_road
+                .in_set(RoadLoopSystems)
+                .run_if(in_state(GameState::Driving)),
+        )
+        .add_systems(
+            Update,
+            (
+                street_lights::sync_street_lights,
+                street_lights::configure_new_street_light_meshes,
+                lighting::prepare_skyboxes,
+                forest::stream_cinematic_forest.after(RoadLoopSystems),
+                forest::configure_new_forest_meshes,
+            ),
+        );
     }
 }
 

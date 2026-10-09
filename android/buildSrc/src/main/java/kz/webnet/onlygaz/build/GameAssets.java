@@ -15,9 +15,13 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -40,9 +44,14 @@ import javax.imageio.stream.FileImageOutputStream;
  * structure stay identical, so the glTF scenes and the game code load the same
  * paths. The original {@code assets/} folder is never modified.
  *
+ * <p>An optional overrides folder ({@code android/asset-overrides}) is laid on
+ * top: a file there replaces the file with the same relative path. It holds
+ * the simplified 3D models of the phone build, made by
+ * {@code tools/make_mobile_models.py}.
+ *
  * <p>Used by the Gradle build ({@link PrepareGameAssetsTask}) and, as a plain
  * command-line tool, by {@code android/build_apk.sh}:
- * {@code java kz.webnet.onlygaz.build.GameAssets <assets dir> <destination>}.
+ * {@code java kz.webnet.onlygaz.build.GameAssets <assets dir> <destination> [overrides dir]}.
  * Plain JDK only: no Gradle, Python or image libraries are needed.
  */
 public final class GameAssets {
@@ -51,22 +60,27 @@ public final class GameAssets {
     /** Longest edge for files outside the listed folders. */
     public static final int DEFAULT_LIMIT = 1024;
 
-    // Longest edge allowed per folder prefix (first match wins).
+    // Longest edge allowed per folder prefix (first match wins). Budget phones
+    // have 3-4 GB of RAM shared by the system, the CPU and the GPU, and the
+    // game keeps every texture resident, uncompressed, with its mipmaps.
     private static final String[] PREFIXES = {
-        // The player's car is always close to the camera: keep its detail.
+        // The player's car is close to the camera, but drawn at most at about
+        // a thousand pixels wide on a phone.
         "models/",
         // Logos and on-screen icons are drawn 1:1 by the interface.
         "ui/",
         "fonts/",
-        // Day/night cubemaps are 1x6 strips: 1024-px faces are plenty on a phone.
+        // Day/night cubemaps are 1x6 strips: 512-px faces on a phone.
         "environment/skyboxes/",
+        // The road surface fills the lower half of the screen.
+        "environment/asphalt/",
         // Distant scenery and traffic.
         "environment/fir_trees/",
         "environment/",
         "traffic/",
         "effects/",
     };
-    private static final int[] LIMITS = {2048, UNLIMITED, UNLIMITED, 6144, 1024, 1024, 1024, 768};
+    private static final int[] LIMITS = {1024, UNLIMITED, UNLIMITED, 3072, 1024, 512, 1024, 512, 512};
 
     private GameAssets() {}
 
@@ -107,6 +121,7 @@ public final class GameAssets {
     public static final class Summary {
         public int copied;
         public int resized;
+        public int overridden;
         public long savedBytes;
         public long totalBytes;
         public final List<String> details = new ArrayList<>();
@@ -116,9 +131,10 @@ public final class GameAssets {
         public String toString() {
             return String.format(
                 Locale.ROOT,
-                "assets: %d copied, %d downscaled, %.0f MB saved, %.0f MB total",
+                "assets: %d copied, %d downscaled, %d phone versions, %.0f MB saved, %.0f MB total",
                 copied,
                 resized,
+                overridden,
                 savedBytes / 1e6,
                 totalBytes / 1e6);
         }
@@ -137,6 +153,16 @@ public final class GameAssets {
      * is deleted first, so it never keeps files that left the game.
      */
     public static Summary prepare(Path source, Path destination, int threads) throws IOException {
+        return prepare(source, null, destination, threads);
+    }
+
+    /**
+     * Rebuild {@code destination} from {@code source}, with the files of
+     * {@code overrides} (may be {@code null}) replacing the files with the same
+     * relative path. Overriding images are downscaled like the originals.
+     */
+    public static Summary prepare(Path source, Path overrides, Path destination, int threads)
+            throws IOException {
         Path sourceRoot = source.toAbsolutePath().normalize();
         Path destinationRoot = destination.toAbsolutePath().normalize();
         if (!Files.isDirectory(sourceRoot)) {
@@ -145,26 +171,44 @@ public final class GameAssets {
         if (destinationRoot.startsWith(sourceRoot)) {
             throw new IOException("the destination must be outside the asset folder: " + destinationRoot);
         }
+        Path overrideRoot = null;
+        if (overrides != null) {
+            overrideRoot = overrides.toAbsolutePath().normalize();
+            if (!Files.isDirectory(overrideRoot)) {
+                throw new IOException("asset overrides folder not found: " + overrideRoot);
+            }
+            if (destinationRoot.startsWith(overrideRoot)) {
+                throw new IOException(
+                    "the destination must be outside the overrides folder: " + destinationRoot);
+            }
+        }
         deleteRecursively(destinationRoot);
         Files.createDirectories(destinationRoot);
 
-        List<Path> files;
-        try (Stream<Path> walk = Files.walk(sourceRoot)) {
-            files = walk.filter(Files::isRegularFile).sorted().collect(Collectors.toList());
+        // Relative path -> file to use, in a stable order.
+        Map<String, Path> files = new TreeMap<>();
+        collect(sourceRoot, files);
+        Set<String> replaced = new HashSet<>();
+        if (overrideRoot != null) {
+            Map<String, Path> phoneVersions = new TreeMap<>();
+            collect(overrideRoot, phoneVersions);
+            for (Map.Entry<String, Path> entry : phoneVersions.entrySet()) {
+                files.put(entry.getKey(), entry.getValue());
+                replaced.add(entry.getKey());
+            }
         }
 
         ExecutorService pool = Executors.newFixedThreadPool(Math.max(1, threads));
         List<Future<Outcome>> futures = new ArrayList<>();
         try {
-            for (Path file : files) {
-                String relative = sourceRoot.relativize(file).toString().replace(File.separatorChar, '/');
-                if (skipped(relative)) {
-                    continue;
-                }
+            for (Map.Entry<String, Path> entry : files.entrySet()) {
+                String relative = entry.getKey();
+                Path file = entry.getValue();
                 Path target = destinationRoot.resolve(relative);
                 futures.add(pool.submit(() -> process(file, target, relative)));
             }
             Summary summary = new Summary();
+            summary.overridden = replaced.size();
             for (Future<Outcome> future : futures) {
                 Outcome outcome;
                 try {
@@ -194,6 +238,18 @@ public final class GameAssets {
             return summary;
         } finally {
             pool.shutdownNow();
+        }
+    }
+
+    /** Add every game file under {@code root} to {@code files}, keyed by relative path. */
+    private static void collect(Path root, Map<String, Path> files) throws IOException {
+        try (Stream<Path> walk = Files.walk(root)) {
+            for (Path file : walk.filter(Files::isRegularFile).collect(Collectors.toList())) {
+                String relative = root.relativize(file).toString().replace(File.separatorChar, '/');
+                if (!skipped(relative)) {
+                    files.put(relative, file);
+                }
+            }
         }
     }
 
@@ -511,15 +567,17 @@ public final class GameAssets {
         });
     }
 
-    /** Command line: {@code GameAssets <assets dir> <destination dir>}. */
+    /** Command line: {@code GameAssets <assets dir> <destination dir> [overrides dir]}. */
     public static void main(String[] arguments) throws IOException {
-        if (arguments.length != 2) {
-            System.err.println("usage: java kz.webnet.onlygaz.build.GameAssets <assets dir> <destination dir>");
+        if (arguments.length != 2 && arguments.length != 3) {
+            System.err.println(
+                "usage: java kz.webnet.onlygaz.build.GameAssets <assets dir> <destination dir> [overrides dir]");
             System.exit(2);
         }
         System.setProperty("java.awt.headless", "true");
         int threads = Math.min(4, Runtime.getRuntime().availableProcessors());
-        Summary summary = prepare(Path.of(arguments[0]), Path.of(arguments[1]), threads);
+        Path overrides = arguments.length == 3 ? Path.of(arguments[2]) : null;
+        Summary summary = prepare(Path.of(arguments[0]), overrides, Path.of(arguments[1]), threads);
         for (String detail : summary.details) {
             System.out.println("  " + detail);
         }

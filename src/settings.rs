@@ -17,7 +17,9 @@ use crate::world::traffic::TrafficSettings;
 
 mod auto_graphics;
 
-const SETTINGS_VERSION: u32 = 4;
+/// 5: the phone build added the Lite preset and render resolution; phone
+/// settings from older versions are configured again for the hardware.
+const SETTINGS_VERSION: u32 = 5;
 const SETTINGS_PATH_ENV: &str = "VEYRON_SETTINGS_PATH";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -104,6 +106,12 @@ impl Plugin for SettingsPersistencePlugin {
             // existing installation. Preserve its hand-picked graphics instead
             // of treating the next update as the first launch.
             auto_graphics_configured = saved.auto_graphics_configured || saved.version < 3;
+            // Phones updated from 1.0.4 or older started from a preset that
+            // was too heavy for budget hardware: choose again, once.
+            #[cfg(feature = "mobile")]
+            if saved.version < 5 {
+                auto_graphics_configured = false;
+            }
             #[cfg(feature = "mobile")]
             app.insert_resource(saved.touch);
             app.insert_resource(saved.display)
@@ -136,14 +144,21 @@ fn auto_configure_graphics_on_first_launch(
     }
 
     // Phones share their power budget with the display and heat up quickly:
-    // start from the lightest preset regardless of how the GPU reports itself.
+    // only the two lightest presets are ever chosen automatically.
     #[cfg(feature = "mobile")]
     {
-        crate::mobile::apply_mobile_graphics_defaults(&mut graphics, &mut traffic);
+        let profile = auto_graphics::HardwareProfile::detect(adapter.as_deref());
+        let quality = if std::env::var_os(crate::world::lighting::QUALITY_ENV).is_some() {
+            crate::world::lighting::LightingQuality::from_env()
+        } else {
+            auto_graphics::recommended_mobile_quality(&profile)
+        };
+        crate::mobile::apply_mobile_graphics_defaults(&mut graphics, &mut traffic, quality);
         file.auto_graphics_configured = true;
         info!(
-            "first-launch graphics auto-configuration: mobile defaults ({})",
-            auto_graphics::HardwareProfile::detect(adapter.as_deref()).description(),
+            "first-launch graphics auto-configuration: phone {} ({})",
+            quality.label(),
+            profile.description(),
         );
     }
 

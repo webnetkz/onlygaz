@@ -13,6 +13,7 @@ use crate::game::GameState;
 use crate::vehicle::physics::VehicleTag;
 
 use super::RoadLoopSystems;
+use super::lighting::LightingSettings;
 use super::road::RoadSpec;
 
 pub const MAX_TRAFFIC_SPEED_KMH: f32 = 160.0;
@@ -111,6 +112,30 @@ pub struct TrafficVehicle {
 #[derive(Component)]
 struct TrafficVisualRoot;
 
+/// Low beam of a traffic car. Lit only when
+/// [`LightingSettings::traffic_beams_enabled`]: by day a beam adds well under
+/// one percent to the sunlit road but still costs every pixel it covers.
+#[derive(Component)]
+pub struct TrafficBeam;
+
+const TRAFFIC_BEAM_LUMENS: f32 = 45_000.0;
+
+fn sync_traffic_beams(
+    settings: Res<LightingSettings>,
+    mut beams: Query<(Ref<TrafficBeam>, &mut SpotLight)>,
+) {
+    let intensity = if settings.traffic_beams_enabled() {
+        TRAFFIC_BEAM_LUMENS
+    } else {
+        0.0
+    };
+    for (beam, mut light) in &mut beams {
+        if (settings.is_changed() || beam.is_added()) && light.intensity != intensity {
+            light.intensity = intensity;
+        }
+    }
+}
+
 /// Shared emissive lenses and shadow-free beams, independent of time of day.
 #[derive(Resource)]
 struct TrafficLampAssets {
@@ -153,7 +178,7 @@ fn spawn_traffic_lamps(
             (size.z * 0.5 + 0.025, &assets.rear),
         ] {
             commands.spawn((
-                Name::new("Traffic running lamp (always on)"),
+                Name::new("Traffic running lamp"),
                 Mesh3d(assets.lens.clone()),
                 MeshMaterial3d(material.clone()),
                 Transform::from_xyz(x, y, z),
@@ -161,10 +186,12 @@ fn spawn_traffic_lamps(
             ));
         }
         commands.spawn((
-            Name::new("Traffic low beam (always on)"),
+            Name::new("Traffic low beam"),
+            TrafficBeam,
             SpotLight {
                 color: Color::srgb(1.0, 0.94, 0.82),
-                intensity: 45_000.0,
+                // Set by `sync_traffic_beams`; dark lights are not rendered.
+                intensity: 0.0,
                 range: 85.0,
                 inner_angle: 0.18,
                 outer_angle: 0.38,
@@ -203,6 +230,7 @@ impl Plugin for TrafficPlugin {
             .register_type::<TrafficSettings>()
             .register_type::<TrafficDensity>()
             .add_systems(Update, maintain_traffic.after(RoadLoopSystems))
+            .add_systems(Update, sync_traffic_beams.after(maintain_traffic))
             .add_systems(
                 Update,
                 drive_traffic
@@ -318,6 +346,9 @@ fn spawn_traffic_vehicle(
         TrafficVisual::KiaPicantoGtLine2017 => 1_050.0,
     };
     commands.entity(entity).insert((
+        super::blob_shadows::BlobShadowCaster {
+            half_extents: Vec2::new(size.x * 0.5, size.z * 0.5),
+        },
         Mass(mass),
         NoAutoMass,
         AngularInertia::new(

@@ -1,10 +1,11 @@
 //! One-time graphics preset selection from the machine's available resources.
 //!
-//! The phone build always starts from its own mobile defaults and only uses
-//! the hardware description for its log line.
+//! The phone build chooses between its two lightest presets
+//! ([`recommended_mobile_quality`]); the desktop build between the other three
+//! ([`recommended_quality`]).
 #![cfg_attr(feature = "mobile", allow(dead_code))]
 
-#[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use std::process::Command;
 
 use bevy::render::renderer::RenderAdapterInfo;
@@ -12,7 +13,7 @@ use wgpu_types::DeviceType;
 
 use crate::world::lighting::LightingQuality;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 use std::fs;
 
 const GIB: u64 = 1024 * 1024 * 1024;
@@ -113,6 +114,58 @@ pub(super) fn recommended_quality(profile: &HardwareProfile) -> LightingQuality 
     }
 }
 
+// The desktop build never calls the phone rules (only its tests do).
+#[cfg_attr(not(feature = "mobile"), allow(dead_code))]
+/// Phones: Lite for budget hardware - under 7 GiB of memory (every 4 GB and
+/// 6 GB phone) or an entry-level GPU - and Performance otherwise. A phone
+/// whose memory cannot be read is treated as a budget phone.
+pub(super) fn recommended_mobile_quality(profile: &HardwareProfile) -> LightingQuality {
+    let Some(memory) = profile.total_memory_bytes else {
+        return LightingQuality::Lite;
+    };
+    let gpu_name = profile.gpu_name.to_ascii_lowercase();
+    if memory < 7 * GIB
+        || profile.logical_cpus < 6
+        || matches!(profile.gpu_kind, GpuKind::Software)
+        || is_budget_mobile_gpu(&gpu_name)
+    {
+        LightingQuality::Lite
+    } else {
+        LightingQuality::Performance
+    }
+}
+
+#[cfg_attr(not(feature = "mobile"), allow(dead_code))]
+/// Entry-level and older phone GPUs: Mali-T and the small Mali-G cores,
+/// PowerVR, and Adreno below the 650 class.
+fn is_budget_mobile_gpu(name: &str) -> bool {
+    if name.contains("powervr") || name.contains("mali-t") {
+        return true;
+    }
+    if let Some(model) = number_after(name, "mali-g") {
+        // G31-G78 (and the older G71/G72) are budget or several years old;
+        // G610 and newer, and every Immortalis, are current.
+        return model < 100;
+    }
+    if let Some(model) = number_after(name, "adreno") {
+        return model < 650;
+    }
+    false
+}
+
+#[cfg_attr(not(feature = "mobile"), allow(dead_code))]
+/// The first number following `marker` in `name`, e.g. 610 in
+/// "adreno (tm) 610".
+fn number_after(name: &str, marker: &str) -> Option<u32> {
+    let rest = &name[name.find(marker)? + marker.len()..];
+    let digits: String = rest
+        .chars()
+        .skip_while(|c| !c.is_ascii_digit())
+        .take_while(char::is_ascii_digit)
+        .collect();
+    digits.parse().ok()
+}
+
 fn is_thermally_limited_device(model: &str) -> bool {
     // MacBook Air is fanless. Recent M-series chips can render the cinematic
     // preset briefly, but a sustained race throttles the shared CPU/GPU package.
@@ -181,7 +234,7 @@ fn device_model() -> String {
     .unwrap_or_else(|| "unknown model".to_owned())
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn total_memory_bytes() -> Option<u64> {
     let text = fs::read_to_string("/proc/meminfo").ok()?;
     let kib = text
@@ -214,12 +267,67 @@ fn device_model() -> String {
         .unwrap_or_else(|| "unknown model".to_owned())
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+/// Android system property, such as `ro.product.model`.
+#[cfg(target_os = "android")]
+fn system_property(name: &str) -> Option<String> {
+    use std::ffi::{CStr, CString, c_char, c_int};
+
+    unsafe extern "C" {
+        // Bionic libc; PROP_VALUE_MAX is 92 bytes including the terminator.
+        fn __system_property_get(name: *const c_char, value: *mut c_char) -> c_int;
+    }
+
+    let name = CString::new(name).ok()?;
+    let mut value = [0 as c_char; 92];
+    // SAFETY: `name` is NUL-terminated and `value` has the PROP_VALUE_MAX
+    // bytes the function may write, including the terminator.
+    let length = unsafe { __system_property_get(name.as_ptr(), value.as_mut_ptr()) };
+    if length <= 0 {
+        return None;
+    }
+    // SAFETY: on success the buffer holds a NUL-terminated string.
+    let text = unsafe { CStr::from_ptr(value.as_ptr()) }
+        .to_string_lossy()
+        .trim()
+        .to_owned();
+    (!text.is_empty()).then_some(text)
+}
+
+#[cfg(target_os = "android")]
+fn device_model() -> String {
+    let model = [
+        system_property("ro.product.manufacturer"),
+        system_property("ro.product.model"),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>()
+    .join(" ");
+    let chip = system_property("ro.soc.model").or_else(|| system_property("ro.board.platform"));
+    match (model.is_empty(), chip) {
+        (true, None) => "unknown model".to_owned(),
+        (true, Some(chip)) => chip,
+        (false, None) => model,
+        (false, Some(chip)) => format!("{model} ({chip})"),
+    }
+}
+
+#[cfg(not(any(
+    target_os = "macos",
+    target_os = "linux",
+    target_os = "windows",
+    target_os = "android"
+)))]
 fn total_memory_bytes() -> Option<u64> {
     None
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+#[cfg(not(any(
+    target_os = "macos",
+    target_os = "linux",
+    target_os = "windows",
+    target_os = "android"
+)))]
 fn device_model() -> String {
     "unknown model".to_owned()
 }
@@ -253,12 +361,12 @@ fn video_memory_bytes() -> Option<u64> {
     None
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(target_os = "macos")]
 fn command_number(program: &str, arguments: &[&str]) -> Option<u64> {
     command_text(program, arguments)?.parse().ok()
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(target_os = "macos")]
 fn command_text(program: &str, arguments: &[&str]) -> Option<String> {
     let output = Command::new(program).args(arguments).output().ok()?;
     output
@@ -339,6 +447,50 @@ mod tests {
     fn macbook_air_always_uses_the_minimum_preset() {
         let profile = profile(32, 10, GpuKind::Integrated, "Apple M4", None, "MacBook Air");
         assert_eq!(recommended_quality(&profile), LightingQuality::Performance);
+    }
+
+    #[test]
+    fn budget_phones_use_lite_and_capable_phones_performance() {
+        let phone = |memory_gib, gpu: &str| HardwareProfile {
+            total_memory_bytes: Some(memory_gib * GIB - GIB / 4),
+            video_memory_bytes: None,
+            logical_cpus: 8,
+            gpu_kind: GpuKind::Integrated,
+            gpu_name: gpu.to_owned(),
+            device_model: "Phone".to_owned(),
+        };
+        for (memory, gpu) in [
+            (4, "Mali-G52 MC2"),
+            (4, "Adreno (TM) 610"),
+            (6, "Adreno (TM) 730"),
+            (8, "Mali-G57 MC2"),
+            (8, "Adreno (TM) 619"),
+            (8, "PowerVR Rogue GE8320"),
+            (12, "Mali-T880"),
+        ] {
+            assert_eq!(
+                recommended_mobile_quality(&phone(memory, gpu)),
+                LightingQuality::Lite,
+                "{memory} GB {gpu}"
+            );
+        }
+        for (memory, gpu) in [
+            (8, "Adreno (TM) 730"),
+            (8, "Mali-G610 MC6"),
+            (12, "Immortalis-G715"),
+            (8, "Samsung Xclipse 920"),
+        ] {
+            assert_eq!(
+                recommended_mobile_quality(&phone(memory, gpu)),
+                LightingQuality::Performance,
+                "{memory} GB {gpu}"
+            );
+        }
+        let unknown = HardwareProfile {
+            total_memory_bytes: None,
+            ..phone(8, "Adreno (TM) 740")
+        };
+        assert_eq!(recommended_mobile_quality(&unknown), LightingQuality::Lite);
     }
 
     #[test]

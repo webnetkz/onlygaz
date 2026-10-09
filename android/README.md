@@ -9,7 +9,7 @@ Desktop-версия (Windows / macOS, Microsoft Store) собирается и�
 
 | | |
 |---|---|
-| Пакет | `com.appswebnetkz.onlygaz` (Google Play, аккаунт appswebnetkz), версия 1.0.4 (versionCode 10004); отладочная сборка — `com.appswebnetkz.onlygaz.debug`. Java-пакет `MainActivity` остаётся `kz.webnet.onlygaz` (namespace) |
+| Пакет | `com.appswebnetkz.onlygaz` (Google Play, аккаунт appswebnetkz), версия 1.0.5 (versionCode 10005); отладочная сборка — `com.appswebnetkz.onlygaz.debug`. Java-пакет `MainActivity` остаётся `kz.webnet.onlygaz` (namespace) |
 | Устройства | Android 8.0+ (minSdk 26), targetSdk 36 (Android 16), 64-битный ARM (`arm64-v8a`), Vulkan или OpenGL ES 3 |
 | Ориентация | горизонтальная; при перевороте телефона на 180° картинка поворачивается следом. Полноэкранный режим без системных панелей |
 | Сборка | Android Gradle Plugin 8.13.2, Gradle 8.14.3 (wrapper), NDK 27.0.12077973, Rust через rustup |
@@ -54,10 +54,26 @@ Desktop-версия (Windows / macOS, Microsoft Store) собирается и�
 
 ### Графика
 
-При первом запуске включается профиль **Performance** (без MSAA) и трафик
-**Low**. Всё меняется в **GRAPHICS**; список настроек прокручивается пальцем,
-кнопки меню срабатывают при отпускании пальца (поэтому прокрутка не меняет
-настройки случайно).
+При первом запуске игра сама выбирает профиль по железу телефона, трафик —
+**Low**:
+
+- **Lite** — бюджетные телефоны: меньше 7 ГБ ОЗУ (все телефоны на 4 и 6 ГБ)
+  или слабый GPU (Mali-G31…G78, Mali-T, PowerVR, Adreno ниже 650). 3D-сцена
+  рендерится в 540p (интерфейс остаётся в полном разрешении), вместо карт
+  теней — мягкие пятна-тени под машинами, нет HDR и полноэкранных эффектов,
+  материалы упрощены (стекло без преломления, без normal/occlusion-карт),
+  дальность прорисовки 1200 м;
+- **Performance** — остальные телефоны: 3D в 720p, тени Low.
+
+Профиль и любые отдельные параметры меняются в **GRAPHICS**: там же строки
+**3D resolution** (480P / 540P / 720P / NATIVE) и **Detailed materials**.
+Список настроек прокручивается пальцем, кнопки меню срабатывают при отпускании
+пальца (поэтому прокрутка не меняет настройки случайно). После обновления с
+версии 1.0.4 и старше профиль один раз выбирается заново.
+
+Что ещё облегчено для телефонов во всех профилях: упрощённые 3D-модели
+(см. ниже), текстуры меньшего размера с mip-уровнями, отсечение всего, что
+дальше дальности прорисовки, и отключение фонарей, которые сейчас не светят.
 
 ## Android Studio: запуск и отладка
 
@@ -131,9 +147,16 @@ x86_64: сборка сама скомпилирует библиотеку по
 | `settings.gradle.kts`, `build.gradle.kts` | проект Gradle, версия плагина Android |
 | `app/build.gradle.kts` | приложение: пакет, версии SDK, подпись, подключение Rust и ассетов |
 | `app/src/main/` | `AndroidManifest.xml`, `MainActivity.java` (NativeActivity), иконки, тема |
-| `buildSrc/` | задачи сборки: `CargoBuildTask` (cargo + clang из NDK → `lib/<abi>/libonlygaz.so`), `PrepareGameAssetsTask` (копия `assets/` с уменьшенными текстурами) |
+| `buildSrc/` | задачи сборки: `CargoBuildTask` (cargo + clang из NDK → `lib/<abi>/libonlygaz.so`), `PrepareGameAssetsTask` (копия `assets/` с уменьшенными текстурами и упрощёнными моделями из `asset-overrides/`) |
+| `asset-overrides/` | упрощённые 3D-модели для телефонов (те же пути, что в `assets/`); делаются скриптом `tools/make_mobile_models.py` |
 | `gradle.properties` | версия игры (`onlygaz.versionCode`, `onlygaz.versionName`), minSdk/targetSdk, архитектуры для AAB/APK |
 | `Cargo.toml`, `src/lib.rs` | Rust-библиотека `libonlygaz.so` (сама игра — крейт в корне репозитория) |
+
+Упрощённые модели (Bugatti ≈111 тыс. треугольников вместо 790 тыс., машины
+трафика в 10–40 раз легче) лежат в `android/asset-overrides/` и пересобираются
+командой `python3 tools/make_mobile_models.py` (нужны Python 3 с Pillow и
+`npm install -g gltfpack`). Имена узлов, мешей и материалов Bugatti
+сохраняются: по ним игра находит колёса, руль, фары, стрелки приборов.
 
 Задачи Gradle: `cargoBuildDebug` / `cargoBuildRelease`,
 `prepareDebugGameAssets` / `prepareReleaseGameAssets` — они запускаются
@@ -211,7 +234,7 @@ REUSE_ASSETS=1 ./android/build_apk.sh   # не готовить ассеты з�
 Либо с компьютера при включённой отладке по USB:
 
 ```sh
-adb install -r android/build/OnlyGAZ-1.0.4.apk
+adb install -r android/build/OnlyGAZ-1.0.5.apk
 ```
 
 Настройки хранятся во внутренней памяти приложения и сохраняются при
@@ -270,4 +293,4 @@ cargo run --release --features mobile --example mobile_preview
   последних лет). Для эмулятора на Intel-Mac или Chromebook можно добавить
   `x86_64` в `onlygaz.abis`.
 - Производительность зависит от телефона: на слабых устройствах держите профиль
-  Performance и трафик Low.
+  Lite и трафик Low; если и этого мало — **3D resolution: 480P**.

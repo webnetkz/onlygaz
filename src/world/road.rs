@@ -253,6 +253,14 @@ const ASPHALT_ARM_PATH: &str = "environment/asphalt/asphalt_track_arm_2k.jpg";
 /// The Poly Haven scan represents a two-metre square of real asphalt.
 const ASPHALT_TILE_METRES: f32 = 2.0;
 
+/// Anisotropic filtering of the road textures. The phone build has
+/// mipmaps (see `texture_mips`), where 16 samples per pixel would cost a
+/// budget GPU dearly; 4 keeps the lane texture crisp to the horizon.
+#[cfg(feature = "mobile")]
+const ROAD_ANISOTROPY: u16 = 4;
+#[cfg(not(feature = "mobile"))]
+const ROAD_ANISOTROPY: u16 = 16;
+
 fn repeating_texture(
     asset_server: &AssetServer,
     path: &'static str,
@@ -265,7 +273,7 @@ fn repeating_texture(
             let mut sampler = ImageSamplerDescriptor::linear();
             sampler
                 .set_address_mode(ImageAddressMode::Repeat)
-                .set_anisotropic_filter(16);
+                .set_anisotropic_filter(ROAD_ANISOTROPY);
             settings.sampler = ImageSampler::Descriptor(sampler);
         })
         .load(path)

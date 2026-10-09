@@ -3,6 +3,7 @@
 pub mod controller;
 pub mod mirrors;
 pub mod modes;
+pub mod render_scale;
 pub mod speed_effect;
 
 use bevy::light::Skybox;
@@ -18,6 +19,7 @@ impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(speed_effect::SpeedEffectPlugin)
             .add_plugins(mirrors::MirrorPlugin)
+            .add_plugins(render_scale::RenderScalePlugin)
             .init_resource::<CameraSettings>()
             .init_resource::<CockpitCameraSettings>()
             .register_type::<CockpitCameraSettings>()
@@ -67,8 +69,9 @@ fn spawn_camera(
                 brightness: lighting_settings.time_of_day.skybox_brightness(),
                 ..default()
             },
+            // The speed effect pass is attached by `apply_to_camera` only
+            // while the speed or collision effect is enabled.
             GameCamera::new(vehicle),
-            speed_effect::SpeedTunnelEffect::default(),
         ))
         .id();
 

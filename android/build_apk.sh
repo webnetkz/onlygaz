@@ -179,7 +179,9 @@ else
         "$HERE/buildSrc/src/main/java/kz/webnet/onlygaz/build/GameAssets.java" 2>&1 |
         grep -v "Picked up JAVA_TOOL_OPTIONS" || true
     [ -f "$TOOLS/kz/webnet/onlygaz/build/GameAssets.class" ] || die "javac failed for GameAssets"
-    java -Xmx3g -cp "$TOOLS" kz.webnet.onlygaz.build.GameAssets "$ROOT/assets" "$ASSETS" 2>&1 |
+    # android/asset-overrides: the simplified models (tools/make_mobile_models.py).
+    java -Xmx3g -cp "$TOOLS" kz.webnet.onlygaz.build.GameAssets \
+        "$ROOT/assets" "$ASSETS" "$HERE/asset-overrides" 2>&1 |
         grep -v "Picked up JAVA_TOOL_OPTIONS" | tail -1
     [ -d "$ASSETS" ] || die "asset preparation failed"
 fi

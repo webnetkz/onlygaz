@@ -209,6 +209,9 @@ pub(crate) enum SettingKind {
     TireMarks,
     TireSmoke,
     Sharpening,
+    /// Resolution of the 3D scene (the interface stays native).
+    RenderResolution,
+    DetailedMaterials,
     Exposure,
     TimeOfDay,
     EffectsVolume,
@@ -383,6 +386,9 @@ fn page_header(
 
 fn quality_description(quality: LightingQuality) -> &'static str {
     match quality {
+        LightingQuality::Lite => {
+            "For budget phones and laptops: lower 3D resolution, no shadow maps, simple materials."
+        }
         LightingQuality::Performance => {
             "Maximum frame rate by default. You can enable any feature below."
         }
@@ -404,6 +410,7 @@ fn selected_quality_description(settings: &LightingSettings) -> String {
 
 fn quality_label(quality: LightingQuality) -> &'static str {
     match quality {
+        LightingQuality::Lite => "LITE",
         LightingQuality::Performance => "PERFORMANCE",
         LightingQuality::Balanced => "BALANCED",
         LightingQuality::Cinematic => "CINEMATIC",
@@ -652,6 +659,7 @@ fn is_boolean_setting(kind: SettingKind) -> bool {
             | SettingKind::TireMarks
             | SettingKind::TireSmoke
             | SettingKind::Sharpening
+            | SettingKind::DetailedMaterials
     )
 }
 
@@ -1167,7 +1175,7 @@ pub(crate) fn spawn_menu(
                                     Button,
                                     GraphicsQualityButton(quality),
                                     Node {
-                                        width: px(285),
+                                        width: px(238),
                                         height: px(48),
                                         align_items: AlignItems::Center,
                                         justify_content: JustifyContent::Center,
@@ -1215,6 +1223,7 @@ pub(crate) fn spawn_menu(
                                     column_header(column, "DISPLAY & WORLD", &bold_font);
                                     setting_row(column, "Resolution", SettingKind::Resolution, &regular_font);
                                     setting_row(column, "Display mode", SettingKind::DisplayMode, &regular_font);
+                                    setting_row(column, "3D resolution", SettingKind::RenderResolution, &regular_font);
                                     setting_row(column, "V-Sync", SettingKind::Vsync, &regular_font);
                                     setting_row(column, "Anti-aliasing", SettingKind::AntiAliasing, &regular_font);
                                     setting_row(column, "View distance", SettingKind::ViewDistance, &regular_font);
@@ -1241,6 +1250,7 @@ pub(crate) fn spawn_menu(
                                     setting_row(column, "Motion blur", SettingKind::MotionBlur, &regular_font);
                                     setting_row(column, "Collision blur", SettingKind::CollisionEffect, &regular_font);
                                     setting_row(column, "Sharpening", SettingKind::Sharpening, &regular_font);
+                                    setting_row(column, "Detailed materials", SettingKind::DetailedMaterials, &regular_font);
                                     setting_row(column, "Exposure", SettingKind::Exposure, &regular_font);
                                 });
                         });
@@ -1574,6 +1584,16 @@ pub(crate) fn handle_setting_buttons(
             SettingKind::MotionBlur => lighting.motion_blur = !lighting.motion_blur,
             SettingKind::CollisionEffect => lighting.collision_effect = !lighting.collision_effect,
             SettingKind::Sharpening => lighting.sharpening = !lighting.sharpening,
+            SettingKind::RenderResolution => {
+                lighting.render_resolution = if previous {
+                    lighting.render_resolution.previous()
+                } else {
+                    lighting.render_resolution.next()
+                };
+            }
+            SettingKind::DetailedMaterials => {
+                lighting.detailed_materials = !lighting.detailed_materials;
+            }
             SettingKind::Exposure => {
                 lighting.exposure_adjustment = if previous {
                     previous_exposure(lighting.exposure_adjustment)
@@ -1858,6 +1878,8 @@ fn setting_value(
         SettingKind::MotionBlur => toggle_label(lighting.motion_blur).to_string(),
         SettingKind::CollisionEffect => toggle_label(lighting.collision_effect).to_string(),
         SettingKind::Sharpening => toggle_label(lighting.sharpening).to_string(),
+        SettingKind::RenderResolution => lighting.render_resolution.label().to_string(),
+        SettingKind::DetailedMaterials => toggle_label(lighting.detailed_materials).to_string(),
         SettingKind::Exposure => lighting.exposure_adjustment.label().to_string(),
         SettingKind::TimeOfDay => lighting.time_of_day.label().to_string(),
         SettingKind::EffectsVolume => format_volume(audio.effects_volume),
@@ -1889,6 +1911,7 @@ fn boolean_setting_value(
         SettingKind::MotionBlur => Some(lighting.motion_blur),
         SettingKind::CollisionEffect => Some(lighting.collision_effect),
         SettingKind::Sharpening => Some(lighting.sharpening),
+        SettingKind::DetailedMaterials => Some(lighting.detailed_materials),
         _ => None,
     }
 }
@@ -2509,18 +2532,18 @@ mod tests {
         let world = app.world_mut();
 
         let mut roots = world.query::<&SettingKind>();
-        assert_eq!(roots.iter(world).count(), 24);
+        assert_eq!(roots.iter(world).count(), 26);
 
         let mut selectors =
             world.query_filtered::<&SettingSelectButton, Without<SettingToggleButton>>();
-        assert_eq!(selectors.iter(world).count(), 12 * 2);
+        assert_eq!(selectors.iter(world).count(), 13 * 2);
         assert!(selectors.iter(world).all(|button| !matches!(
             button.kind,
             SettingKind::EffectsVolume | SettingKind::EngineVolume | SettingKind::MusicVolume
         )));
 
         let mut toggles = world.query::<&SettingToggleButton>();
-        assert_eq!(toggles.iter(world).count(), 9);
+        assert_eq!(toggles.iter(world).count(), 10);
         assert!(
             toggles
                 .iter(world)
@@ -2560,7 +2583,7 @@ mod tests {
         }));
 
         let mut switches = world.query::<(&SettingToggleButton, &Node)>();
-        assert_eq!(switches.iter(world).count(), 9);
+        assert_eq!(switches.iter(world).count(), 10);
         assert!(switches.iter(world).all(|(_, node)| {
             node.width == px(82)
                 && node.height == px(32)
